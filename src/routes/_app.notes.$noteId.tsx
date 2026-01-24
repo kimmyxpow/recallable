@@ -20,7 +20,6 @@ import {
   IconTrash,
   IconCheck,
   IconAlertCircle,
-  IconSend,
   IconFileOff,
   IconBold,
   IconItalic,
@@ -45,8 +44,6 @@ import {
   EmptyDescription,
 } from "@/components/ui/empty";
 import { useState, useTransition, useCallback } from "react";
-import { motion } from "motion/react";
-import TextareaAutosize from "react-textarea-autosize";
 import { useEditor, EditorContent, useEditorState } from "@tiptap/react";
 import { FloatingMenu, BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
@@ -57,7 +54,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
 import { useAsyncDebouncedCallback } from "@tanstack/react-pacer";
 
 export const Route = createFileRoute("/_app/notes/$noteId")({
@@ -397,54 +393,6 @@ function NoteEditor({
   );
 }
 
-function AIInput() {
-  const [isFocused, setIsFocused] = useState(false);
-  const [value, setValue] = useState("");
-
-  return (
-    <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2">
-      <motion.div
-        layout
-        initial={false}
-        animate={{
-          width: isFocused ? 600 : 400,
-        }}
-        transition={{
-          type: "spring",
-          stiffness: 400,
-          damping: 30,
-        }}
-        className={cn(
-          "rounded-2xl border border-border bg-background/80 p-3 shadow-xl shadow-black/10 backdrop-blur-xl",
-          isFocused && "border-primary"
-        )}
-      >
-        <div className="flex flex-col gap-3">
-          <TextareaAutosize
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            placeholder="Ask AI to help you write..."
-            minRows={isFocused ? 3 : 1}
-            maxRows={8}
-            className="resize-none bg-transparent text-sm leading-relaxed outline-none placeholder:text-muted-foreground"
-            style={{
-              transition: "min-height 0.2s ease-out",
-            }}
-          />
-          <div className="flex justify-end">
-            <Button disabled={!value.trim()}>
-              <IconSend />
-              Send
-            </Button>
-          </div>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
 function SaveStatusIndicator({ status }: { status: SaveStatus }) {
   if (status === "idle") return null;
 
@@ -603,7 +551,6 @@ function NotePage() {
         />
         <div className="h-24" />
       </div>
-      <AIInput />
     </div>
   );
 }
