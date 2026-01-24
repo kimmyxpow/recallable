@@ -166,8 +166,8 @@ function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm flex flex-col gap-8">
         <div className="text-center">
-          <h1 className="text-2xl">Welcome back</h1>
-          <p>Sign in to your account to continue</p>
+          <h1 className="text-2xl font-semibold">Welcome to Recallable</h1>
+          <p className="text-muted-foreground">Sign in to start writing</p>
         </div>
         <CardContent className="flex flex-col gap-4">
           {!otpSent ? (
@@ -202,7 +202,7 @@ function LoginPage() {
                           <FieldError errors={field.state.meta.errors} />
                         )}
                         <FieldDescription>
-                          We'll send you a verification code
+                          We'll send you a magic code
                         </FieldDescription>
                       </Field>
                     );
@@ -239,7 +239,7 @@ function LoginPage() {
                     return (
                       <Field data-invalid={isInvalid}>
                         <FieldLabel htmlFor={field.name}>
-                          Verification Code
+                          Magic Code
                         </FieldLabel>
                         <Input
                           id={field.name}
@@ -275,7 +275,7 @@ function LoginPage() {
                 children={(isSubmitting) => (
                   <Button type="submit" disabled={isSubmitting}>
                     {isSubmitting && <Spinner />}
-                    {isSubmitting ? "Verifying..." : "Verify Code"}
+                    {isSubmitting ? "Checking..." : "Continue"}
                   </Button>
                 )}
               />
@@ -288,7 +288,7 @@ function LoginPage() {
                   disabled={isPending}
                 >
                   {isPending && <Spinner />}
-                  {isPending ? "Sending..." : "Resend Code"}
+                  {isPending ? "Sending..." : "Send new code"}
                 </Button>
               ) : (
                 <p className="text-xs text-center text-muted-foreground">
@@ -308,7 +308,7 @@ function LoginPage() {
                   emailForm.reset();
                 }}
               >
-                Use different email
+                Try a different email
               </Button>
             </form>
           )}

@@ -6,24 +6,25 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(0.9778 0.0348 94.54);
+  --background: var(--color-neutral-100);
   --foreground: var(--color-neutral-700);
-  --card: oklch(0.9778 0.0348 94.54);
+  --card: var(--color-neutral-100);
   --card-foreground: var(--color-neutral-700);
-  --popover: oklch(0.9778 0.0348 94.54);
+  --popover: var(--color-neutral-100);
   --popover-foreground: var(--color-neutral-700);
   --primary: oklch(0.6385 0.198468 253.2582);
   --primary-foreground: oklch(0.98 0.01 237);
   --secondary: oklch(0.95 0.0543 94.54);
   --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.95 0.0444 94.54);
+  --muted: var(--color-neutral-200);
   --muted-foreground: oklch(0.553 0.013 58.071);
-  --accent: oklch(0.95 0.0444 94.54);
+  --accent: var(--color-neutral-200);
   --accent-foreground: oklch(0.216 0.006 56.043);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.8971 0.0518 94.54);
-  --input: oklch(0.8971 0.0518 94.54);
-  --ring: oklch(0.8588 0.0641 94.54);
+  --destructive-foreground: var(--color-red-100);
+  --border: var(--color-neutral-300);
+  --input: var(--color-neutral-300);
+  --ring: var(--color-neutral-300);
   --chart-1: oklch(0.83 0.1 230);
   --chart-2: oklch(0.75 0.14 233);
   --chart-3: oklch(0.68 0.15 237);
@@ -34,10 +35,10 @@
   --sidebar-foreground: oklch(0.147 0.004 49.25);
   --sidebar-primary: oklch(0.6385 0.198468 253.2582);
   --sidebar-primary-foreground: oklch(0.98 0.01 237);
-  --sidebar-accent: oklch(0.95 0.0444 94.54);
+  --sidebar-accent: var(--color-neutral-200);
   --sidebar-accent-foreground: oklch(0.216 0.006 56.043);
-  --sidebar-border: oklch(0.8971 0.0518 94.54);
-  --sidebar-ring: oklch(0.8588 0.0641 94.54);
+  --sidebar-border: var(--color-neutral-300);
+  --sidebar-ring: var(--color-neutral-300);
 }
 
 .dark {
@@ -93,6 +94,7 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
