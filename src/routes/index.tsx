@@ -13,12 +13,12 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import { authClient } from "@/lib/auth-client";
+import { authClient } from "@/integrations/better-auth/auth-client";
 
 export const Route = createFileRoute("/")({
   beforeLoad: async ({ context }) => {
     if (context.isAuthenticated) {
-      throw redirect({ to: "/dashboard" });
+      throw redirect({ to: "/notes" });
     }
   },
   component: LoginPage,
@@ -137,7 +137,7 @@ function LoginPage() {
         );
         return;
       }
-      navigate({ to: "/dashboard" });
+      navigate({ to: "/notes" });
     },
   });
 
@@ -148,7 +148,7 @@ function LoginPage() {
     startGoogleTransition(async () => {
       await authClient.signIn.social({
         provider: "google",
-        callbackURL: "/dashboard",
+        callbackURL: "/notes",
       });
     });
   };
@@ -157,7 +157,7 @@ function LoginPage() {
     startGithubTransition(async () => {
       await authClient.signIn.social({
         provider: "github",
-        callbackURL: "/dashboard",
+        callbackURL: "/notes",
       });
     });
   };
@@ -238,9 +238,7 @@ function LoginPage() {
                       field.state.meta.isTouched && !field.state.meta.isValid;
                     return (
                       <Field data-invalid={isInvalid}>
-                        <FieldLabel htmlFor={field.name}>
-                          Magic Code
-                        </FieldLabel>
+                        <FieldLabel htmlFor={field.name}>Magic Code</FieldLabel>
                         <Input
                           id={field.name}
                           name={field.name}
@@ -322,11 +320,19 @@ function LoginPage() {
               </span>
             </div>
           </div>
-          <Button variant="outline" onClick={handleGoogleSignIn} disabled={isGooglePending || isGithubPending}>
+          <Button
+            variant="outline"
+            onClick={handleGoogleSignIn}
+            disabled={isGooglePending || isGithubPending}
+          >
             {isGooglePending ? <Spinner /> : <GoogleIcon />}
             Continue with Google
           </Button>
-          <Button variant="outline" onClick={handleGithubSignIn} disabled={isGooglePending || isGithubPending}>
+          <Button
+            variant="outline"
+            onClick={handleGithubSignIn}
+            disabled={isGooglePending || isGithubPending}
+          >
             {isGithubPending ? <Spinner /> : <GithubIcon />}
             Continue with GitHub
           </Button>
