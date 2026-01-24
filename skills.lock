@@ -110,6 +110,26 @@
       "url": "https://github.com/resend/email-best-practices.git",
       "branch": "main",
       "commit": "46f30743faf29509cd915fd624b4419534719e2e"
+    },
+    "skill:baseline-ui": {
+      "url": "https://github.com/ibelick/ui-skills.git",
+      "branch": "main",
+      "commit": "83c85a90661f45283179dd12ea6ad9ddcc72a26f"
+    },
+    "skill:fixing-accessibility": {
+      "url": "https://github.com/ibelick/ui-skills.git",
+      "branch": "main",
+      "commit": "83c85a90661f45283179dd12ea6ad9ddcc72a26f"
+    },
+    "skill:fixing-metadata": {
+      "url": "https://github.com/ibelick/ui-skills.git",
+      "branch": "main",
+      "commit": "83c85a90661f45283179dd12ea6ad9ddcc72a26f"
+    },
+    "skill:fixing-motion-performance": {
+      "url": "https://github.com/ibelick/ui-skills.git",
+      "branch": "main",
+      "commit": "83c85a90661f45283179dd12ea6ad9ddcc72a26f"
     }
   }
 }

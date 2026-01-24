@@ -1,5 +1,6 @@
 Use **Bun** exclusively.
 Do **NOT** use npm, pnpm, or yarn under any circumstances.
+Use 'bd' for task tracking
 
 ## Plan Mode
 
@@ -122,6 +123,17 @@ Rules:
 - **Skill(seo-audit)**
   Required for auditing, reviewing, or diagnosing SEO issues.
 
+**Frontend & UI**
+
+- **Skill(baseline-ui)**
+  Required for baseline UI implementation, component scaffolding, or foundational UI patterns.
+- **Skill(fixing-accessibility)**
+  Required for fixing accessibility issues, ARIA attributes, keyboard navigation, or screen reader support.
+- **Skill(fixing-metadata)**
+  Required for fixing metadata tags, Open Graph, Twitter Cards, or structured data.
+- **Skill(fixing-motion-performance)**
+  Required for fixing animation performance, jank, frame rate issues, or motion-related optimizations.
+
 ## Final Warning
 
 If a response matches a condition and does **not** apply the required skill:
@@ -129,3 +141,30 @@ If a response matches a condition and does **not** apply the required skill:
 **STOP. DO NOT ANSWER. FIX THE RESPONSE.**
 
 This is enforcement, not guidance.
+
+## Landing the Plane (Session Completion)
+
+**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
+
+**MANDATORY WORKFLOW:**
+
+1. **File issues for remaining work** - Create issues for anything that needs follow-up
+2. **Run quality gates** (if code changed) - Tests, linters, builds
+3. **Update issue status** - Close finished work, update in-progress items
+4. **PUSH TO REMOTE** - This is MANDATORY:
+   ```bash
+   git pull --rebase
+   bd sync
+   git push
+   git status  # MUST show "up to date with origin"
+   ```
+5. **Clean up** - Clear stashes, prune remote branches
+6. **Verify** - All changes committed AND pushed
+7. **Hand off** - Provide context for next session
+
+**CRITICAL RULES:**
+
+- Work is NOT complete until `git push` succeeds
+- NEVER stop before pushing - that leaves work stranded locally
+- NEVER say "ready to push when you are" - YOU must push
+- If push fails, resolve and retry until it succeeds
