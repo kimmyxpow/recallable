@@ -1,10 +1,11 @@
-import { useCallback } from "react";
-import { useConvexMutation } from "@convex-dev/react-query";
+import { useCallback, useRef, useState, type ChangeEvent } from "react";
+import { useConvex, useConvexMutation } from "@convex-dev/react-query";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { useEditor, EditorContent, useEditorState } from "@tiptap/react";
 import { FloatingMenu, BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
+import Image from "@tiptap/extension-image";
 import { Toggle } from "@/components/ui/toggle";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -28,6 +29,7 @@ import {
   IconSourceCode,
   IconClearFormatting,
   IconSeparatorHorizontal,
+  IconPhoto,
 } from "@tabler/icons-react";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -52,6 +54,7 @@ interface ToolbarButtonProps {
   isActive?: boolean;
   disabled?: boolean;
   tooltip: string;
+  ariaLabel?: string;
   children: React.ReactNode;
 }
 
@@ -60,6 +63,7 @@ function ToolbarButton({
   isActive,
   disabled,
   tooltip,
+  ariaLabel,
   children,
 }: ToolbarButtonProps) {
   return (
@@ -71,6 +75,7 @@ function ToolbarButton({
             pressed={isActive ?? false}
             onClick={onClick}
             disabled={disabled}
+            aria-label={ariaLabel ?? tooltip}
           />
         }
       >
@@ -90,7 +95,14 @@ export function NoteEditor({
   initialContent: TiptapContent | undefined;
   onSaveStatusChange: (status: SaveStatus) => void;
 }) {
+  const convex = useConvex();
   const updateContentMutation = useConvexMutation(api.notes.updateContent);
+  const generateImageUploadUrl = useConvexMutation(
+    api.notes.generateImageUploadUrl
+  );
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const debouncedSave = useAsyncDebouncedCallback(
     async (content: TiptapContent) => {
@@ -115,7 +127,19 @@ export function NoteEditor({
   );
 
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: [
+      StarterKit,
+      Image.extend({
+        addAttributes() {
+          return {
+            src: { default: null },
+            alt: { default: null },
+            title: { default: null },
+            storageId: { default: null },
+          };
+        },
+      }),
+    ],
     content: initialContent ?? DEFAULT_CONTENT,
     onUpdate: handleUpdate,
     immediatelyRender: false,
@@ -126,6 +150,65 @@ export function NoteEditor({
       },
     },
   });
+
+  const insertImage = useCallback(
+    async (file: File) => {
+      setUploadError(null);
+      setIsUploading(true);
+      try {
+        const uploadUrl = await generateImageUploadUrl({});
+        const result = await fetch(uploadUrl, {
+          method: "POST",
+          headers: { "Content-Type": file.type },
+          body: file,
+        });
+        if (!result.ok) {
+          throw new Error("Upload failed");
+        }
+        const { storageId } = (await result.json()) as {
+          storageId: Id<"_storage">;
+        };
+        const url = await convex.query(api.notes.getImageUrl, { storageId });
+        if (!url) {
+          throw new Error("Image URL unavailable");
+        }
+        editor?.chain().focus().setImage({ src: url }).run();
+        const lastPos = editor?.state.selection.from;
+        if (lastPos !== undefined) {
+          const node = editor?.state.doc.nodeAt(lastPos - 1);
+          if (node?.type?.name === "image") {
+            editor
+              ?.chain()
+              .focus()
+              .setNodeSelection(lastPos - 1)
+              .updateAttributes("image", { storageId })
+              .run();
+          }
+        }
+      } catch {
+        setUploadError("Image upload failed.");
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [convex, editor, generateImageUploadUrl]
+  );
+
+  const handleImageUpload = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) {
+        return;
+      }
+      if (!file.type.startsWith("image/")) {
+        setUploadError("File must be an image.");
+        return;
+      }
+      void insertImage(file);
+      event.target.value = "";
+    },
+    [insertImage]
+  );
 
   const editorState = useEditorState({
     editor,
@@ -246,6 +329,13 @@ export function NoteEditor({
           <IconList className="size-4" />
         </ToolbarButton>
         <ToolbarButton
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+          tooltip="Insert Image"
+        >
+          <IconPhoto className="size-4" />
+        </ToolbarButton>
+        <ToolbarButton
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
           isActive={editorState?.isOrderedList}
           tooltip="Numbered List"
@@ -319,6 +409,13 @@ export function NoteEditor({
           <IconList className="size-4" />
         </ToolbarButton>
         <ToolbarButton
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+          tooltip="Insert Image"
+        >
+          <IconPhoto className="size-4" />
+        </ToolbarButton>
+        <ToolbarButton
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
           isActive={editorState?.isOrderedList}
           tooltip="Numbered List"
@@ -350,6 +447,18 @@ export function NoteEditor({
         </ToolbarButton>
       </FloatingMenu>
 
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleImageUpload}
+        className="hidden"
+      />
+      {uploadError ? (
+        <p className="mt-2 text-pretty text-xs text-destructive" role="alert">
+          {uploadError}
+        </p>
+      ) : null}
       <EditorContent editor={editor} />
     </div>
   );

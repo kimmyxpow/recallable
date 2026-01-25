@@ -27,6 +27,7 @@ export default defineSchema({
     userId: v.string(),
     title: v.string(),
     content: v.optional(v.any()),
+    imageStorageIds: v.optional(v.array(v.id("_storage"))),
     folderId: v.optional(v.id("folders")),
     tagIds: v.optional(v.array(v.id("tags"))),
     createdAt: v.number(),

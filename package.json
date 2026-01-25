@@ -45,6 +45,7 @@
     "@tanstack/react-store": "^0.8.0",
     "@tanstack/router-plugin": "^1.132.0",
     "@tanstack/store": "^0.8.0",
+    "@tiptap/extension-image": "^3.17.0",
     "@tiptap/pm": "^3.17.0",
     "@tiptap/react": "^3.17.0",
     "@tiptap/starter-kit": "^3.17.0",

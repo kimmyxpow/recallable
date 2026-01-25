@@ -39,6 +39,7 @@
         "@tanstack/react-store": "^0.8.0",
         "@tanstack/router-plugin": "^1.132.0",
         "@tanstack/store": "^0.8.0",
+        "@tiptap/extension-image": "^3.17.0",
         "@tiptap/pm": "^3.17.0",
         "@tiptap/react": "^3.17.0",
         "@tiptap/starter-kit": "^3.17.0",
@@ -815,6 +816,8 @@
     "@tiptap/extension-heading": ["@tiptap/extension-heading@3.17.0", "", { "peerDependencies": { "@tiptap/core": "^3.17.0" } }, "sha512-iXAlQfMum1wEWsq0hy4e+Ph1Qs6QoPFV+HtsoTgPxVMaYeskF/e0E6Ig/Qqbi6rwLnu1OmOxzj1ZVOq5HQgU+g=="],
 
     "@tiptap/extension-horizontal-rule": ["@tiptap/extension-horizontal-rule@3.17.0", "", { "peerDependencies": { "@tiptap/core": "^3.17.0", "@tiptap/pm": "^3.17.0" } }, "sha512-Qt8BtbmdrSU+yt7NydcE6Ct4Me5LfMVrV3a20QG+yEcWeQQN5W5N3HnQqyxy4BCjo0lbl3qF/DxcxqGtJ4342w=="],
+
+    "@tiptap/extension-image": ["@tiptap/extension-image@3.17.1", "", { "peerDependencies": { "@tiptap/core": "^3.17.1" } }, "sha512-VbSSZ//5qijm8F0lQQ6K+DGnZgjLKYQY2c+O56QNEoN8BaCFrJlsVgF1ttrSRUmoG4XBNIMlAS07kZXvMZQr0g=="],
 
     "@tiptap/extension-italic": ["@tiptap/extension-italic@3.17.0", "", { "peerDependencies": { "@tiptap/core": "^3.17.0" } }, "sha512-qlgDTUgeW+ctzE6n6GEn6AA4rE/cZERQPo9Z5wza/bNWG/YecVVyieZOgvkNfzuwsk0w3QCXkvw71Mk6tgGA6g=="],
 

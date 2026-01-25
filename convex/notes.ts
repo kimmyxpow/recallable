@@ -1,9 +1,12 @@
-import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { ConvexError, v } from "convex/values";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
+import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 
 export const list = query({
   args: {},
+  returns: v.array(v.any()),
   handler: async (ctx) => {
     const user = await authComponent.getAuthUser(ctx);
     if (!user) {
@@ -20,6 +23,7 @@ export const list = query({
 
 export const get = query({
   args: { noteId: v.id("notes") },
+  returns: v.union(v.any(), v.null()),
   handler: async (ctx, args) => {
     const user = await authComponent.getAuthUser(ctx);
     if (!user) {
@@ -41,10 +45,14 @@ export const create = mutation({
     folderId: v.optional(v.id("folders")),
     tagIds: v.optional(v.array(v.id("tags"))),
   },
+  returns: v.id("notes"),
   handler: async (ctx, args) => {
     const user = await authComponent.getAuthUser(ctx);
     if (!user) {
-      throw new Error("Not authenticated");
+      throw new ConvexError({
+        code: "UNAUTHENTICATED",
+        message: "Not authenticated",
+      });
     }
 
     const now = Date.now();
@@ -52,6 +60,7 @@ export const create = mutation({
       userId: user._id,
       title: args.title ?? "Untitled",
       content: undefined,
+      imageStorageIds: [],
       folderId: args.folderId,
       tagIds: args.tagIds,
       createdAt: now,
@@ -67,24 +76,43 @@ export const updateContent = mutation({
     noteId: v.id("notes"),
     content: v.any(),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const user = await authComponent.getAuthUser(ctx);
     if (!user) {
-      throw new Error("Not authenticated");
+      throw new ConvexError({
+        code: "UNAUTHENTICATED",
+        message: "Not authenticated",
+      });
     }
 
     const note = await ctx.db.get(args.noteId);
     if (!note || note.userId !== user._id) {
-      throw new Error("Note not found");
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Note not found",
+      });
     }
 
     const title = extractTitleFromContent(args.content);
+    const nextImageStorageIds = extractImageStorageIds(args.content);
+    const previousImageStorageIds = note.imageStorageIds ?? [];
+    const removedStorageIds = previousImageStorageIds.filter(
+      (storageId) => !nextImageStorageIds.includes(storageId)
+    );
 
     await ctx.db.patch(args.noteId, {
       content: args.content,
+      imageStorageIds: nextImageStorageIds,
       title: title || "Untitled",
       updatedAt: Date.now(),
     });
+    if (removedStorageIds.length > 0) {
+      await ctx.scheduler.runAfter(0, internal.notes.removeStorageFiles, {
+        storageIds: removedStorageIds,
+      });
+    }
+    return null;
   },
 });
 
@@ -126,43 +154,93 @@ function extractTitleFromContent(content: {
   return null;
 }
 
+function extractImageStorageIds(content: {
+  type: string;
+  content?: Array<Record<string, unknown>>;
+}): Id<"_storage">[] {
+  const storageIds = new Set<Id<"_storage">>();
+  if (!content?.content?.length) {
+    return [];
+  }
+  const stack = [...content.content];
+  while (stack.length) {
+    const node = stack.pop();
+    if (!node || typeof node !== "object") {
+      continue;
+    }
+    const typedNode = node as {
+      type?: string;
+      attrs?: { storageId?: Id<"_storage"> };
+      content?: Array<Record<string, unknown>>;
+    };
+    if (typedNode.type === "image" && typedNode.attrs?.storageId) {
+      storageIds.add(typedNode.attrs.storageId);
+    }
+    if (Array.isArray(typedNode.content)) {
+      stack.push(...typedNode.content);
+    }
+  }
+  return Array.from(storageIds);
+}
+
 export const updateTitle = mutation({
   args: {
     noteId: v.id("notes"),
     title: v.string(),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const user = await authComponent.getAuthUser(ctx);
     if (!user) {
-      throw new Error("Not authenticated");
+      throw new ConvexError({
+        code: "UNAUTHENTICATED",
+        message: "Not authenticated",
+      });
     }
 
     const note = await ctx.db.get(args.noteId);
     if (!note || note.userId !== user._id) {
-      throw new Error("Note not found");
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Note not found",
+      });
     }
 
     await ctx.db.patch(args.noteId, {
       title: args.title,
       updatedAt: Date.now(),
     });
+    return null;
   },
 });
 
 export const remove = mutation({
   args: { noteId: v.id("notes") },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const user = await authComponent.getAuthUser(ctx);
     if (!user) {
-      throw new Error("Not authenticated");
+      throw new ConvexError({
+        code: "UNAUTHENTICATED",
+        message: "Not authenticated",
+      });
     }
 
     const note = await ctx.db.get(args.noteId);
     if (!note || note.userId !== user._id) {
-      throw new Error("Note not found");
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Note not found",
+      });
     }
 
     await ctx.db.delete(args.noteId);
+    if (note.imageStorageIds?.length) {
+      await ctx.scheduler.runAfter(0, internal.notes.removeStorageFiles, {
+        storageIds: note.imageStorageIds,
+      });
+    }
+    return null;
   },
 });
 
@@ -171,21 +249,29 @@ export const updateFolder = mutation({
     noteId: v.id("notes"),
     folderId: v.optional(v.id("folders")),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const user = await authComponent.getAuthUser(ctx);
     if (!user) {
-      throw new Error("Not authenticated");
+      throw new ConvexError({
+        code: "UNAUTHENTICATED",
+        message: "Not authenticated",
+      });
     }
 
     const note = await ctx.db.get(args.noteId);
     if (!note || note.userId !== user._id) {
-      throw new Error("Note not found");
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Note not found",
+      });
     }
 
     await ctx.db.patch(args.noteId, {
       folderId: args.folderId,
       updatedAt: Date.now(),
     });
+    return null;
   },
 });
 
@@ -194,21 +280,29 @@ export const updateTags = mutation({
     noteId: v.id("notes"),
     tagIds: v.array(v.id("tags")),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const user = await authComponent.getAuthUser(ctx);
     if (!user) {
-      throw new Error("Not authenticated");
+      throw new ConvexError({
+        code: "UNAUTHENTICATED",
+        message: "Not authenticated",
+      });
     }
 
     const note = await ctx.db.get(args.noteId);
     if (!note || note.userId !== user._id) {
-      throw new Error("Note not found");
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Note not found",
+      });
     }
 
     await ctx.db.patch(args.noteId, {
       tagIds: args.tagIds,
       updatedAt: Date.now(),
     });
+    return null;
   },
 });
 
@@ -217,15 +311,22 @@ export const addTag = mutation({
     noteId: v.id("notes"),
     tagId: v.id("tags"),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const user = await authComponent.getAuthUser(ctx);
     if (!user) {
-      throw new Error("Not authenticated");
+      throw new ConvexError({
+        code: "UNAUTHENTICATED",
+        message: "Not authenticated",
+      });
     }
 
     const note = await ctx.db.get(args.noteId);
     if (!note || note.userId !== user._id) {
-      throw new Error("Note not found");
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Note not found",
+      });
     }
 
     const currentTags = note.tagIds ?? [];
@@ -235,6 +336,7 @@ export const addTag = mutation({
         updatedAt: Date.now(),
       });
     }
+    return null;
   },
 });
 
@@ -243,15 +345,22 @@ export const removeTag = mutation({
     noteId: v.id("notes"),
     tagId: v.id("tags"),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const user = await authComponent.getAuthUser(ctx);
     if (!user) {
-      throw new Error("Not authenticated");
+      throw new ConvexError({
+        code: "UNAUTHENTICATED",
+        message: "Not authenticated",
+      });
     }
 
     const note = await ctx.db.get(args.noteId);
     if (!note || note.userId !== user._id) {
-      throw new Error("Note not found");
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Note not found",
+      });
     }
 
     const currentTags = note.tagIds ?? [];
@@ -259,11 +368,13 @@ export const removeTag = mutation({
       tagIds: currentTags.filter((id) => id !== args.tagId),
       updatedAt: Date.now(),
     });
+    return null;
   },
 });
 
 export const listByFolder = query({
   args: { folderId: v.optional(v.id("folders")) },
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const user = await authComponent.getAuthUser(ctx);
     if (!user) {
@@ -281,6 +392,7 @@ export const listByFolder = query({
 
 export const listByTag = query({
   args: { tagId: v.id("tags") },
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const user = await authComponent.getAuthUser(ctx);
     if (!user) {
@@ -293,5 +405,61 @@ export const listByTag = query({
       .collect();
 
     return allNotes.filter((note) => note.tagIds?.includes(args.tagId));
+  },
+});
+
+export const generateImageUploadUrl = mutation({
+  args: {},
+  returns: v.string(),
+  handler: async (ctx) => {
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+export const getImageUrl = query({
+  args: { storageId: v.id("_storage") },
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx, args) => {
+    return await ctx.storage.getUrl(args.storageId);
+  },
+});
+
+export const removeStorageFiles = internalMutation({
+  args: { storageIds: v.array(v.id("_storage")) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await Promise.all(
+      args.storageIds.map((storageId) => ctx.storage.delete(storageId))
+    );
+    return null;
+  },
+});
+
+export const cleanupUnusedImages = internalMutation({
+  args: { maxAgeMs: v.number(), limit: v.optional(v.number()) },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 200;
+    const cutoffTime = Date.now() - args.maxAgeMs;
+    const notes = await ctx.db.query("notes").collect();
+    const usedStorageIds = new Set<Id<"_storage">>();
+
+    for (const note of notes) {
+      for (const storageId of note.imageStorageIds ?? []) {
+        usedStorageIds.add(storageId);
+      }
+    }
+
+    const candidates = await ctx.db.system
+      .query("_storage")
+      .filter((q) => q.lt(q.field("_creationTime"), cutoffTime))
+      .take(limit);
+
+    const toDelete = candidates.filter(
+      (file) => !usedStorageIds.has(file._id)
+    );
+
+    await Promise.all(toDelete.map((file) => ctx.storage.delete(file._id)));
+    return toDelete.length;
   },
 });
