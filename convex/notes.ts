@@ -173,7 +173,10 @@ function extractImageStorageIds(content: {
       attrs?: { storageId?: Id<"_storage"> };
       content?: Array<Record<string, unknown>>;
     };
-    if (typedNode.type === "image" && typedNode.attrs?.storageId) {
+    if (
+      (typedNode.type === "image" || typedNode.type === "audio") &&
+      typedNode.attrs?.storageId
+    ) {
       storageIds.add(typedNode.attrs.storageId);
     }
     if (Array.isArray(typedNode.content)) {
@@ -409,6 +412,14 @@ export const listByTag = query({
 });
 
 export const generateImageUploadUrl = mutation({
+  args: {},
+  returns: v.string(),
+  handler: async (ctx) => {
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+export const generateAudioUploadUrl = mutation({
   args: {},
   returns: v.string(),
   handler: async (ctx) => {
