@@ -157,24 +157,18 @@ export function NoteEditor({
       TableHeader,
       TableCell,
       Image.extend({
-        addOptions() {
-          return {
-            ...this.parent?.(),
-            resize: {
-              enabled: true,
-              minWidth: 80,
-              minHeight: 80,
-              alwaysPreserveAspectRatio: true,
-            },
-          };
-        },
         addAttributes() {
           return {
-            src: { default: null },
-            alt: { default: null },
-            title: { default: null },
+            ...this.parent?.(),
             storageId: { default: null },
           };
+        },
+      }).configure({
+        resize: {
+          enabled: true,
+          minWidth: 80,
+          minHeight: 80,
+          alwaysPreserveAspectRatio: true,
         },
       }),
       Audio.extend({
