@@ -41,6 +41,8 @@ import {
   IconSeparatorHorizontal,
   IconPhoto,
   IconMusic,
+  IconArrowMergeAltLeft,
+  IconLayoutBoardSplit,
 } from "@tabler/icons-react";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -341,6 +343,9 @@ export function NoteEditor({
         isOrderedList: ctx.editor.isActive("orderedList"),
         isBlockquote: ctx.editor.isActive("blockquote"),
         isCodeBlock: ctx.editor.isActive("codeBlock"),
+        isTable: ctx.editor.isActive("table"),
+        canMergeCells: ctx.editor.can().mergeCells(),
+        canSplitCell: ctx.editor.can().splitCell(),
       };
     },
     equalityFn: (prev, next) => {
@@ -356,7 +361,10 @@ export function NoteEditor({
         prev.isBulletList === next.isBulletList &&
         prev.isOrderedList === next.isOrderedList &&
         prev.isBlockquote === next.isBlockquote &&
-        prev.isCodeBlock === next.isCodeBlock
+        prev.isCodeBlock === next.isCodeBlock &&
+        prev.isTable === next.isTable &&
+        prev.canMergeCells === next.canMergeCells &&
+        prev.canSplitCell === next.canSplitCell
       );
     },
   });
@@ -487,6 +495,28 @@ export function NoteEditor({
         >
           <IconClearFormatting className="size-4" />
         </ToolbarButton>
+
+        {editorState?.isTable && (editorState.canMergeCells || editorState.canSplitCell) && (
+          <>
+            <Separator orientation="vertical" className="mx-1 h-6" />
+            {editorState.canMergeCells && (
+              <ToolbarButton
+                onClick={() => editor.chain().focus().mergeCells().run()}
+                tooltip="Merge Cells"
+              >
+                <IconArrowMergeAltLeft className="size-4" />
+              </ToolbarButton>
+            )}
+            {editorState.canSplitCell && (
+              <ToolbarButton
+                onClick={() => editor.chain().focus().splitCell().run()}
+                tooltip="Split Cell"
+              >
+                <IconLayoutBoardSplit className="size-4" />
+              </ToolbarButton>
+            )}
+          </>
+        )}
       </BubbleMenu>
 
       <FloatingMenu

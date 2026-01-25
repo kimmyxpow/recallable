@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Table } from "@tiptap/extension-table";
 import type { Editor } from "@tiptap/core";
@@ -21,8 +21,6 @@ import {
   IconRowRemove,
   IconColumnRemove,
   IconTableOff,
-  IconLayoutBoardSplit,
-  IconArrowMergeAltLeft,
   IconDotsVertical,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
@@ -120,23 +118,6 @@ function TableMenu({
           >
             <IconColumnRemove className="size-4" />
             Delete Column
-          </DropdownMenuItem>
-
-          <DropdownMenuSeparator />
-
-          <DropdownMenuItem
-            onClick={() => editor.chain().focus().mergeCells().run()}
-            disabled={!editor.can().mergeCells()}
-          >
-            <IconArrowMergeAltLeft className="size-4" />
-            Merge Cells
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => editor.chain().focus().splitCell().run()}
-            disabled={!editor.can().splitCell()}
-          >
-            <IconLayoutBoardSplit className="size-4" />
-            Split Cell
           </DropdownMenuItem>
 
           <DropdownMenuSeparator />
