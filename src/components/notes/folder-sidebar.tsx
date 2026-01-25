@@ -42,10 +42,15 @@ import IconDocumentAddBoldDuotone from "~icons/solar/document-add-bold-duotone";
 import IconAddFolderBoldDuotone from "~icons/solar/add-folder-bold-duotone";
 import IconTrashBinTrashBoldDuotone from "~icons/solar/trash-bin-trash-bold-duotone";
 import IconPenBoldDuotone from "~icons/solar/pen-bold-duotone";
-import IconAltArrowLeftLineDuotone from "~icons/solar/alt-arrow-left-line-duotone";
 import IconLogout2BoldDuotone from "~icons/solar/logout-2-bold-duotone";
 import IconMenuDotsBoldDuotone from "~icons/solar/menu-dots-bold-duotone";
 import IconSadCircleBoldDuotone from "~icons/solar/sad-circle-bold-duotone";
+import { DndContextProvider } from "./dnd/dnd-context-provider";
+import { DraggableItem } from "./dnd/draggable-item";
+import { DroppableFolder } from "./dnd/droppable-folder";
+import { ParentDropZone } from "./dnd/parent-drop-zone";
+import type { DragData, FolderDragData, NoteDragData } from "./dnd/types";
+import { useDndMonitor } from "@dnd-kit/core";
 
 export function FolderSidebar({
   currentFolderId,
@@ -107,6 +112,8 @@ export function FolderSidebar({
   const createFolderMutation = useConvexMutation(api.folders.create);
   const removeFolderMutation = useConvexMutation(api.folders.remove);
   const updateFolderMutation = useConvexMutation(api.folders.update);
+  const moveFolderMutation = useConvexMutation(api.folders.move);
+  const updateNoteFolderMutation = useConvexMutation(api.notes.updateFolder);
 
   const handleLogout = () => {
     startLogoutTransition(async () => {
@@ -182,6 +189,26 @@ export function FolderSidebar({
     onNavigateFolder(folderId);
   };
 
+  const handleMoveNote = (
+    noteId: string,
+    targetFolderId: string | undefined
+  ) => {
+    updateNoteFolderMutation({
+      noteId: noteId as Id<"notes">,
+      folderId: targetFolderId as Id<"folders"> | undefined,
+    });
+  };
+
+  const handleMoveFolder = (
+    folderId: string,
+    targetParentId: string | undefined
+  ) => {
+    moveFolderMutation({
+      folderId: folderId as Id<"folders">,
+      parentId: targetParentId as Id<"folders"> | undefined,
+    });
+  };
+
   const slideVariants = {
     enter: (direction: "left" | "right") => ({
       x: direction === "left" ? 50 : -50,
@@ -205,246 +232,35 @@ export function FolderSidebar({
 
   return (
     <>
-      <div className="w-72 flex flex-col m-6 gap-4">
-        <header className="flex bg-white rounded-lg items-center justify-between p-1">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <AnimatePresence mode="wait">
-              {currentFolderId ? (
-                <motion.div
-                  key="back-button"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  transition={springTransition}
-                >
-                  <Button variant="ghost" size="icon" onClick={handleGoBack}>
-                    <IconAltArrowLeftLineDuotone className="text-foreground/60" />
-                  </Button>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="home-icon"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  transition={springTransition}
-                >
-                  <IconStarsBoldDuotone className="text-primary size-5 ml-3" />
-                </motion.div>
-              )}
-            </AnimatePresence>
-            <AnimatePresence mode="wait">
-              <motion.span
-                key={currentFolderId ?? "root"}
-                initial={{
-                  opacity: 0,
-                  x: slideDirection === "left" ? 10 : -10,
-                }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: slideDirection === "left" ? -10 : 10 }}
-                transition={springTransition}
-                className="text-sm font-medium truncate"
-              >
-                {currentFolder?.name ?? "Recallable"}
-              </motion.span>
-            </AnimatePresence>
-          </div>
-
-          <div className="flex items-center gap-1">
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button variant="ghost" size="icon">
-                    <IconPlus />
-                  </Button>
-                }
-              />
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={handleCreateNote}
-                  disabled={isCreatingNote}
-                >
-                  {isCreatingNote ? (
-                    <Spinner />
-                  ) : (
-                    <IconDocumentAddBoldDuotone className="text-foreground/60" />
-                  )}
-                  New Note
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => {
-                    setFolderName("");
-                    setShowNewFolderDialog(true);
-                  }}
-                  disabled={isCreatingFolder}
-                >
-                  {isCreatingFolder ? (
-                    <Spinner />
-                  ) : (
-                    <IconAddFolderBoldDuotone className="text-foreground/60" />
-                  )}
-                  New Folder
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button variant="ghost" size="icon">
-                    <Avatar>
-                      <AvatarImage src="https://github.com/kimmyxpow.png" />
-                      <AvatarFallback>U</AvatarFallback>
-                    </Avatar>
-                  </Button>
-                }
-              />
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => setShowLogoutDialog(true)}
-                >
-                  <IconLogout2BoldDuotone className="text-foreground/60" />
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </header>
-
-        <div className="flex-1 overflow-hidden relative bg-white rounded-lg">
-          <AnimatePresence mode="wait" custom={slideDirection}>
-            <motion.div
-              key={currentFolderId ?? "root"}
-              custom={slideDirection}
-              variants={slideVariants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={springTransition}
-              className="absolute inset-0 overflow-auto"
-            >
-              {folders.length === 0 && notes.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                  <IconSadCircleBoldDuotone className="size-10 text-muted-foreground/50 mb-2" />
-                  <p className="text-sm text-muted-foreground">No notes yet</p>
-                  <p className="text-xs text-muted-foreground/70">
-                    Create a note or folder
-                  </p>
-                </div>
-              ) : (
-                <div className="p-2 space-y-1">
-                  {folders.map((folder, index) => (
-                    <motion.div
-                      key={folder._id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{
-                        ...springTransition,
-                        delay: index * 0.03,
-                      }}
-                      className="group flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent/30 cursor-pointer"
-                      onClick={() => handleNavigateIntoFolder(folder._id)}
-                    >
-                      <IconFolder2BoldDuotone className="size-4 text-foreground/60 shrink-0" />
-                      <span className="text-sm truncate flex-1">
-                        {folder.name}
-                      </span>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={
-                            <Button
-                              variant="ghost"
-                              size="icon-xs"
-                              className="opacity-0 group-hover:opacity-100"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <IconMenuDotsBoldDuotone className="text-foreground/60" />
-                            </Button>
-                          }
-                        />
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openRenameDialog(folder);
-                            }}
-                          >
-                            <IconPenBoldDuotone className="text-foreground/60" />
-                            Rename
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setFolderToDelete(folder);
-                            }}
-                          >
-                            <IconTrashBinTrashBoldDuotone className="text-foreground/60" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </motion.div>
-                  ))}
-
-                  {notes.map((note, index) => (
-                    <motion.div
-                      key={note._id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{
-                        ...springTransition,
-                        delay: (folders.length + index) * 0.03,
-                      }}
-                      className={cn(
-                        "group flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer",
-                        selectedNoteId === note._id
-                          ? "bg-secondary text-secondary-foreground"
-                          : "hover:bg-accent"
-                      )}
-                      onClick={() => onSelectNote(note._id)}
-                    >
-                      <IconDocumentBoldDuotone className="size-4 text-foreground/60 shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm truncate text-inherit">
-                          {note.title}
-                        </p>
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              className="opacity-0 group-hover:opacity-100 size-6"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <IconMenuDotsBoldDuotone className="text-foreground/60" />
-                            </Button>
-                          }
-                        />
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setNoteToDelete(note);
-                            }}
-                          >
-                            <IconTrashBinTrashBoldDuotone className="text-foreground/60" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </div>
+      <DndContextProvider
+        onMoveNote={handleMoveNote}
+        onMoveFolder={handleMoveFolder}
+      >
+        <FolderSidebarContent
+          currentFolderId={currentFolderId}
+          currentFolder={currentFolder}
+          folders={folders}
+          notes={notes}
+          selectedNoteId={selectedNoteId}
+          slideDirection={slideDirection}
+          slideVariants={slideVariants}
+          springTransition={springTransition}
+          isCreatingNote={isCreatingNote}
+          isCreatingFolder={isCreatingFolder}
+          onSelectNote={onSelectNote}
+          onNavigateIntoFolder={handleNavigateIntoFolder}
+          onGoBack={handleGoBack}
+          onCreateNote={handleCreateNote}
+          onCreateFolder={() => {
+            setFolderName("");
+            setShowNewFolderDialog(true);
+          }}
+          onDeleteNote={setNoteToDelete}
+          onDeleteFolder={setFolderToDelete}
+          onRenameFolder={openRenameDialog}
+          onShowLogoutDialog={() => setShowLogoutDialog(true)}
+        />
+      </DndContextProvider>
 
       <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
         <AlertDialogContent className="max-w-sm">
@@ -588,5 +404,324 @@ export function FolderSidebar({
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+function FolderSidebarContent({
+  currentFolderId,
+  currentFolder,
+  folders,
+  notes,
+  selectedNoteId,
+  slideDirection,
+  slideVariants,
+  springTransition,
+  isCreatingNote,
+  isCreatingFolder,
+  onSelectNote,
+  onNavigateIntoFolder,
+  onGoBack,
+  onCreateNote,
+  onCreateFolder,
+  onDeleteNote,
+  onDeleteFolder,
+  onRenameFolder,
+  onShowLogoutDialog,
+}: {
+  currentFolderId?: Id<"folders">;
+  currentFolder: Doc<"folders"> | null | undefined;
+  folders: Doc<"folders">[];
+  notes: Doc<"notes">[];
+  selectedNoteId?: Id<"notes">;
+  slideDirection: "left" | "right";
+  slideVariants: {
+    enter: (direction: "left" | "right") => { x: number; opacity: number };
+    center: { x: number; opacity: number };
+    exit: (direction: "left" | "right") => { x: number; opacity: number };
+  };
+  springTransition: { type: "spring"; stiffness: number; damping: number };
+  isCreatingNote: boolean;
+  isCreatingFolder: boolean;
+  onSelectNote: (noteId: Id<"notes">) => void;
+  onNavigateIntoFolder: (folderId: Id<"folders">) => void;
+  onGoBack: () => void;
+  onCreateNote: () => void;
+  onCreateFolder: () => void;
+  onDeleteNote: (note: Doc<"notes">) => void;
+  onDeleteFolder: (folder: Doc<"folders">) => void;
+  onRenameFolder: (folder: Doc<"folders">) => void;
+  onShowLogoutDialog: () => void;
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [activeItem, setActiveItem] = useState<DragData | null>(null);
+
+  useDndMonitor({
+    onDragStart: (event) => {
+      setIsDragging(true);
+      setActiveItem(event.active.data.current as DragData);
+    },
+    onDragEnd: () => {
+      setIsDragging(false);
+      setActiveItem(null);
+    },
+    onDragCancel: () => {
+      setIsDragging(false);
+      setActiveItem(null);
+    },
+  });
+
+  return (
+    <div className="w-72 flex flex-col m-6 gap-4">
+      <header className="flex bg-white rounded-lg items-center justify-between p-1">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <IconStarsBoldDuotone className="text-primary size-5 ml-3" />
+          <span className="text-sm font-medium truncate">Recallable</span>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button variant="ghost" size="icon">
+                  <IconPlus />
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={onCreateNote}
+                disabled={isCreatingNote}
+              >
+                {isCreatingNote ? (
+                  <Spinner />
+                ) : (
+                  <IconDocumentAddBoldDuotone className="text-foreground/60" />
+                )}
+                New Note
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={onCreateFolder}
+                disabled={isCreatingFolder}
+              >
+                {isCreatingFolder ? (
+                  <Spinner />
+                ) : (
+                  <IconAddFolderBoldDuotone className="text-foreground/60" />
+                )}
+                New Folder
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button variant="ghost" size="icon">
+                  <Avatar>
+                    <AvatarImage src="https://github.com/kimmyxpow.png" />
+                    <AvatarFallback>U</AvatarFallback>
+                  </Avatar>
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={onShowLogoutDialog}
+              >
+                <IconLogout2BoldDuotone className="text-foreground/60" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </header>
+
+      <div className="flex-1 overflow-hidden relative bg-white rounded-lg">
+        <AnimatePresence mode="wait" custom={slideDirection}>
+          <motion.div
+            key={currentFolderId ?? "root"}
+            custom={slideDirection}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={springTransition}
+            className="absolute inset-0 overflow-auto"
+          >
+            <ParentDropZone
+              targetFolderId={currentFolder?.parentId}
+              isVisible={!!currentFolderId}
+              isDragging={isDragging}
+              currentFolderName={currentFolder?.name}
+              onNavigateBack={onGoBack}
+            />
+
+            {folders.length === 0 && notes.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center p-4">
+                <IconSadCircleBoldDuotone className="size-10 text-muted-foreground/50 mb-2" />
+                <p className="text-sm text-muted-foreground">No notes yet</p>
+                <p className="text-xs text-muted-foreground/70">
+                  Create a note or folder
+                </p>
+              </div>
+            ) : (
+              <div className="p-2 space-y-1">
+                {folders.map((folder, index) => {
+                  const folderData: FolderDragData = {
+                    type: "folder",
+                    folderId: folder._id,
+                    name: folder.name,
+                    parentId: folder.parentId,
+                  };
+
+                  return (
+                    <DroppableFolder
+                      key={folder._id}
+                      id={`droppable-folder-${folder._id}`}
+                      folderId={folder._id}
+                      activeItem={activeItem}
+                    >
+                      <DraggableItem
+                        id={`draggable-folder-${folder._id}`}
+                        data={folderData}
+                      >
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{
+                            ...springTransition,
+                            delay: index * 0.03,
+                          }}
+                          className={cn(
+                            "group flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent/30 cursor-grab active:cursor-grabbing",
+                            isDragging &&
+                              activeItem?.type === "folder" &&
+                              (activeItem as FolderDragData).folderId ===
+                                folder._id &&
+                              "opacity-50"
+                          )}
+                          onClick={() => onNavigateIntoFolder(folder._id)}
+                        >
+                          <IconFolder2BoldDuotone className="size-4 text-foreground/60 shrink-0" />
+                          <span className="text-sm truncate flex-1">
+                            {folder.name}
+                          </span>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              render={
+                                <Button
+                                  variant="ghost"
+                                  size="icon-xs"
+                                  className="opacity-0 group-hover:opacity-100"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <IconMenuDotsBoldDuotone className="text-foreground/60" />
+                                </Button>
+                              }
+                            />
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onRenameFolder(folder);
+                                }}
+                              >
+                                <IconPenBoldDuotone className="text-foreground/60" />
+                                Rename
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                variant="destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeleteFolder(folder);
+                                }}
+                              >
+                                <IconTrashBinTrashBoldDuotone className="text-foreground/60" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </motion.div>
+                      </DraggableItem>
+                    </DroppableFolder>
+                  );
+                })}
+
+                {notes.map((note, index) => {
+                  const noteData: NoteDragData = {
+                    type: "note",
+                    noteId: note._id,
+                    title: note.title,
+                    currentFolderId: note.folderId,
+                  };
+
+                  return (
+                    <DraggableItem
+                      key={note._id}
+                      id={`draggable-note-${note._id}`}
+                      data={noteData}
+                    >
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{
+                          ...springTransition,
+                          delay: (folders.length + index) * 0.03,
+                        }}
+                        className={cn(
+                          "group flex items-center gap-2 px-2 py-1.5 rounded-md cursor-grab active:cursor-grabbing",
+                          selectedNoteId === note._id
+                            ? "bg-secondary text-secondary-foreground"
+                            : "hover:bg-accent/30",
+                          isDragging &&
+                            activeItem?.type === "note" &&
+                            (activeItem as NoteDragData).noteId === note._id &&
+                            "opacity-50"
+                        )}
+                        onClick={() => onSelectNote(note._id)}
+                      >
+                        <IconDocumentBoldDuotone className="size-4 text-foreground/60 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm truncate text-inherit">
+                            {note.title}
+                          </p>
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            render={
+                              <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                className="opacity-0 group-hover:opacity-100"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <IconMenuDotsBoldDuotone className="text-foreground/60" />
+                              </Button>
+                            }
+                          />
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteNote(note);
+                              }}
+                            >
+                              <IconTrashBinTrashBoldDuotone className="text-foreground/60" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </motion.div>
+                    </DraggableItem>
+                  );
+                })}
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </div>
   );
 }

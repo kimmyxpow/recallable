@@ -146,6 +146,18 @@ export const move = mutation({
       throw new Error("Cannot move folder into itself");
     }
 
+    if (args.parentId) {
+      let currentId: Id<"folders"> | undefined = args.parentId;
+      while (currentId) {
+        if (currentId === args.folderId) {
+          throw new Error("Cannot move folder into its own descendant");
+        }
+        const ancestorFolder: Doc<"folders"> | null = await ctx.db.get(currentId);
+        if (!ancestorFolder || ancestorFolder.userId !== user._id) break;
+        currentId = ancestorFolder.parentId;
+      }
+    }
+
     await ctx.db.patch(args.folderId, {
       parentId: args.parentId,
       updatedAt: Date.now(),
