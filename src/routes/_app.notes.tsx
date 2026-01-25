@@ -20,12 +20,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { useRef, useEffect, useState } from "react";
 import { useAtom } from "jotai";
 import { lastOpenedNoteAtom, lastFolderAtom } from "@/lib/atoms";
-import {
-  NoteEditor,
-  FolderSidebar,
-  type SaveStatus,
-  type TiptapContent,
-} from "@/components/notes";
+import { NoteEditor, type SaveStatus, type TiptapContent } from "@/components/notes/note-editor";
+import { FolderSidebar } from "@/components/notes/folder-sidebar";
 import { formatDistanceToNow } from "date-fns";
 
 export const Route = createFileRoute("/_app/notes")({

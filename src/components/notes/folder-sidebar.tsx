@@ -40,14 +40,12 @@ import {
   IconFolder,
   IconFolderPlus,
   IconChevronLeft,
-  IconHome,
   IconPencil,
   IconNotes,
   IconSparkles2,
 } from "@tabler/icons-react";
 import { Spinner } from "@/components/ui/spinner";
 import { authClient } from "@/integrations/better-auth/auth-client";
-import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 
