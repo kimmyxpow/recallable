@@ -36,7 +36,7 @@ function AIInput() {
           damping: 30,
         }}
         className={cn(
-          "rounded-2xl border border-border bg-background/80 p-3 shadow-xl shadow-black/10 backdrop-blur-xl",
+          "rounded-2xl border border-border bg-white p-3 shadow-xl shadow-black/10",
           isFocused && "border-primary"
         )}
       >

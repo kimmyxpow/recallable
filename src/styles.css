@@ -8,11 +8,11 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: var(--color-neutral-100);
+  --background: #fafaf5;
   --foreground: var(--color-neutral-700);
   --card: var(--color-neutral-100);
   --card-foreground: var(--color-neutral-700);
-  --popover: var(--color-neutral-100);
+  --popover: var(--color-white);
   --popover-foreground: var(--color-neutral-700);
   --primary: oklch(0.6385 0.198468 253.2582);
   --primary-foreground: oklch(0.98 0.01 237);
@@ -24,7 +24,7 @@
   --accent-foreground: oklch(0.216 0.006 56.043);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: var(--color-red-100);
-  --border: var(--color-neutral-300);
+  --border: var(--color-neutral-200);
   --input: var(--color-neutral-300);
   --ring: var(--color-neutral-300);
   --chart-1: oklch(0.83 0.1 230);

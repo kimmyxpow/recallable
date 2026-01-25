@@ -18,7 +18,10 @@ import { authClient } from "@/integrations/better-auth/auth-client";
 export const Route = createFileRoute("/")({
   beforeLoad: async ({ context }) => {
     if (context.isAuthenticated) {
-      throw redirect({ to: "/notes" });
+      throw redirect({
+        to: "/notes",
+        search: { folderId: undefined, noteId: undefined },
+      });
     }
   },
   component: LoginPage,
@@ -137,7 +140,7 @@ function LoginPage() {
         );
         return;
       }
-      navigate({ to: "/notes" });
+      navigate({ to: "/notes", search: { folderId: undefined, noteId: undefined } });
     },
   });
 

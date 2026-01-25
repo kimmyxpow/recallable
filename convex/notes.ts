@@ -36,7 +36,11 @@ export const get = query({
 });
 
 export const create = mutation({
-  args: { title: v.optional(v.string()) },
+  args: {
+    title: v.optional(v.string()),
+    folderId: v.optional(v.id("folders")),
+    tagIds: v.optional(v.array(v.id("tags"))),
+  },
   handler: async (ctx, args) => {
     const user = await authComponent.getAuthUser(ctx);
     if (!user) {
@@ -48,6 +52,8 @@ export const create = mutation({
       userId: user._id,
       title: args.title ?? "Untitled",
       content: undefined,
+      folderId: args.folderId,
+      tagIds: args.tagIds,
       createdAt: now,
       updatedAt: now,
     });
@@ -157,5 +163,135 @@ export const remove = mutation({
     }
 
     await ctx.db.delete(args.noteId);
+  },
+});
+
+export const updateFolder = mutation({
+  args: {
+    noteId: v.id("notes"),
+    folderId: v.optional(v.id("folders")),
+  },
+  handler: async (ctx, args) => {
+    const user = await authComponent.getAuthUser(ctx);
+    if (!user) {
+      throw new Error("Not authenticated");
+    }
+
+    const note = await ctx.db.get(args.noteId);
+    if (!note || note.userId !== user._id) {
+      throw new Error("Note not found");
+    }
+
+    await ctx.db.patch(args.noteId, {
+      folderId: args.folderId,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const updateTags = mutation({
+  args: {
+    noteId: v.id("notes"),
+    tagIds: v.array(v.id("tags")),
+  },
+  handler: async (ctx, args) => {
+    const user = await authComponent.getAuthUser(ctx);
+    if (!user) {
+      throw new Error("Not authenticated");
+    }
+
+    const note = await ctx.db.get(args.noteId);
+    if (!note || note.userId !== user._id) {
+      throw new Error("Note not found");
+    }
+
+    await ctx.db.patch(args.noteId, {
+      tagIds: args.tagIds,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const addTag = mutation({
+  args: {
+    noteId: v.id("notes"),
+    tagId: v.id("tags"),
+  },
+  handler: async (ctx, args) => {
+    const user = await authComponent.getAuthUser(ctx);
+    if (!user) {
+      throw new Error("Not authenticated");
+    }
+
+    const note = await ctx.db.get(args.noteId);
+    if (!note || note.userId !== user._id) {
+      throw new Error("Note not found");
+    }
+
+    const currentTags = note.tagIds ?? [];
+    if (!currentTags.includes(args.tagId)) {
+      await ctx.db.patch(args.noteId, {
+        tagIds: [...currentTags, args.tagId],
+        updatedAt: Date.now(),
+      });
+    }
+  },
+});
+
+export const removeTag = mutation({
+  args: {
+    noteId: v.id("notes"),
+    tagId: v.id("tags"),
+  },
+  handler: async (ctx, args) => {
+    const user = await authComponent.getAuthUser(ctx);
+    if (!user) {
+      throw new Error("Not authenticated");
+    }
+
+    const note = await ctx.db.get(args.noteId);
+    if (!note || note.userId !== user._id) {
+      throw new Error("Note not found");
+    }
+
+    const currentTags = note.tagIds ?? [];
+    await ctx.db.patch(args.noteId, {
+      tagIds: currentTags.filter((id) => id !== args.tagId),
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const listByFolder = query({
+  args: { folderId: v.optional(v.id("folders")) },
+  handler: async (ctx, args) => {
+    const user = await authComponent.getAuthUser(ctx);
+    if (!user) {
+      return [];
+    }
+
+    return await ctx.db
+      .query("notes")
+      .withIndex("by_userId_folderId", (q) =>
+        q.eq("userId", user._id).eq("folderId", args.folderId)
+      )
+      .collect();
+  },
+});
+
+export const listByTag = query({
+  args: { tagId: v.id("tags") },
+  handler: async (ctx, args) => {
+    const user = await authComponent.getAuthUser(ctx);
+    if (!user) {
+      return [];
+    }
+
+    const allNotes = await ctx.db
+      .query("notes")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .collect();
+
+    return allNotes.filter((note) => note.tagIds?.includes(args.tagId));
   },
 });

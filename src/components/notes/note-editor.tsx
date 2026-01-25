@@ -1,26 +1,20 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { convexQuery, useConvexMutation } from "@convex-dev/react-query";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { api } from "../../convex/_generated/api";
-import type { Id } from "../../convex/_generated/dataModel";
-import { Button } from "@/components/ui/button";
+import { useCallback } from "react";
+import { useConvexMutation } from "@convex-dev/react-query";
+import { api } from "../../../convex/_generated/api";
+import type { Id } from "../../../convex/_generated/dataModel";
+import { useEditor, EditorContent, useEditorState } from "@tiptap/react";
+import { FloatingMenu, BubbleMenu } from "@tiptap/react/menus";
+import StarterKit from "@tiptap/starter-kit";
+import { Toggle } from "@/components/ui/toggle";
+import { Separator } from "@/components/ui/separator";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useAsyncDebouncedCallback } from "@tanstack/react-pacer";
+import { Spinner } from "@/components/ui/spinner";
 import {
-  IconArrowLeft,
-  IconTrash,
-  IconCheck,
-  IconAlertCircle,
-  IconFileOff,
   IconBold,
   IconItalic,
   IconStrikethrough,
@@ -35,39 +29,10 @@ import {
   IconClearFormatting,
   IconSeparatorHorizontal,
 } from "@tabler/icons-react";
-import { Spinner } from "@/components/ui/spinner";
-import {
-  Empty,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-  EmptyDescription,
-} from "@/components/ui/empty";
-import { useState, useTransition, useCallback } from "react";
-import { useEditor, EditorContent, useEditorState } from "@tiptap/react";
-import { FloatingMenu, BubbleMenu } from "@tiptap/react/menus";
-import StarterKit from "@tiptap/starter-kit";
-import { Toggle } from "@/components/ui/toggle";
-import { Separator } from "@/components/ui/separator";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { useAsyncDebouncedCallback } from "@tanstack/react-pacer";
 
-export const Route = createFileRoute("/_app/notes/$noteId")({
-  loader: async ({ params, context }) => {
-    await context.queryClient.ensureQueryData(
-      convexQuery(api.notes.get, { noteId: params.noteId as Id<"notes"> })
-    );
-  },
-  component: NotePage,
-});
+export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
-type SaveStatus = "idle" | "saving" | "saved" | "error";
-
-type TiptapContent = {
+export type TiptapContent = {
   type: "doc";
   content?: Array<Record<string, unknown>>;
 };
@@ -116,7 +81,7 @@ function ToolbarButton({
   );
 }
 
-function NoteEditor({
+export function NoteEditor({
   noteId,
   initialContent,
   onSaveStatusChange,
@@ -131,10 +96,7 @@ function NoteEditor({
     async (content: TiptapContent) => {
       onSaveStatusChange("saving");
       try {
-        await updateContentMutation({
-          noteId,
-          content,
-        });
+        await updateContentMutation({ noteId, content });
         onSaveStatusChange("saved");
         setTimeout(() => onSaveStatusChange("idle"), 2000);
       } catch {
@@ -213,7 +175,7 @@ function NoteEditor({
     <div className="relative w-full min-h-125 px-6 py-8">
       <BubbleMenu
         editor={editor}
-        className="flex items-center gap-0.5 rounded-lg border border-border bg-background p-1 shadow-lg"
+        className="flex items-center gap-0.5 rounded-lg border border-border bg-white p-1 shadow-lg"
       >
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBold().run()}
@@ -317,7 +279,7 @@ function NoteEditor({
 
       <FloatingMenu
         editor={editor}
-        className="flex items-center gap-0.5 rounded-lg border border-border bg-background p-1 shadow-lg"
+        className="flex items-center gap-0.5 rounded-lg border border-border bg-white p-1 shadow-lg"
       >
         <ToolbarButton
           onClick={() =>
@@ -389,168 +351,6 @@ function NoteEditor({
       </FloatingMenu>
 
       <EditorContent editor={editor} />
-    </div>
-  );
-}
-
-function SaveStatusIndicator({ status }: { status: SaveStatus }) {
-  if (status === "idle") return null;
-
-  return (
-    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-      {status === "saving" && (
-        <>
-          <Spinner className="size-3.5" />
-          <span>Saving...</span>
-        </>
-      )}
-      {status === "saved" && (
-        <>
-          <IconCheck className="size-3.5 text-green-500" />
-          <span className="text-green-600">Saved</span>
-        </>
-      )}
-      {status === "error" && (
-        <>
-          <IconAlertCircle className="size-3.5 text-destructive" />
-          <span className="text-destructive">Error saving</span>
-        </>
-      )}
-    </div>
-  );
-}
-
-function NoteNavbar({
-  title,
-  saveStatus,
-  onDelete,
-}: {
-  title: string;
-  saveStatus: SaveStatus;
-  onDelete: () => void;
-}) {
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [isDeleting, startDeleteTransition] = useTransition();
-
-  const handleDelete = () => {
-    startDeleteTransition(async () => {
-      await onDelete();
-      setShowDeleteDialog(false);
-    });
-  };
-
-  return (
-    <>
-      <header className="flex items-center justify-between border-dashed border-b border-border bg-background/50 backdrop-blur-sm px-4 py-2">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" render={<Link to="/notes" />}>
-            <IconArrowLeft className="size-4" />
-          </Button>
-          <span className="font-medium text-sm truncate max-w-50">{title}</span>
-          <SaveStatusIndicator status={saveStatus} />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setShowDeleteDialog(true)}
-          >
-            <IconTrash className="size-4" />
-          </Button>
-        </div>
-      </header>
-
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent size="sm">
-          <AlertDialogHeader className="place-items-start text-start">
-            <AlertDialogTitle>Delete note?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{title}"? This action cannot be
-              undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={isDeleting}
-            >
-              {isDeleting && <Spinner />}
-              {isDeleting ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
-  );
-}
-
-function NotFoundState() {
-  return (
-    <Empty className="py-24 px-6">
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <IconFileOff />
-        </EmptyMedia>
-        <EmptyTitle>Note not found</EmptyTitle>
-        <EmptyDescription>
-          This note may have been deleted or doesn't exist.
-        </EmptyDescription>
-      </EmptyHeader>
-      <Button render={<Link to="/notes" />}>Back to notes</Button>
-    </Empty>
-  );
-}
-
-function NotePage() {
-  const { noteId } = Route.useParams();
-  const navigate = useNavigate();
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
-
-  const { data: note } = useSuspenseQuery(
-    convexQuery(api.notes.get, { noteId: noteId as Id<"notes"> })
-  );
-
-  const removeMutation = useConvexMutation(api.notes.remove);
-
-  const handleDelete = async () => {
-    await removeMutation({ noteId: noteId as Id<"notes"> });
-    navigate({ to: "/notes" });
-  };
-
-  if (!note) {
-    return (
-      <div className="flex min-h-screen max-w-4xl mx-auto border-x border-dashed flex-col">
-        <header className="flex items-center justify-between border-dashed border-b border-border bg-background/50 backdrop-blur-sm px-4 py-2">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" render={<Link to="/notes" />}>
-              <IconArrowLeft className="size-4" />
-            </Button>
-          </div>
-        </header>
-        <NotFoundState />
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex min-h-screen max-w-4xl mx-auto border-x border-dashed flex-col">
-      <NoteNavbar
-        title={note.title}
-        saveStatus={saveStatus}
-        onDelete={handleDelete}
-      />
-      <div className="flex-1 overflow-auto">
-        <NoteEditor
-          key={noteId}
-          noteId={noteId as Id<"notes">}
-          initialContent={note.content as TiptapContent}
-          onSaveStatusChange={setSaveStatus}
-        />
-        <div className="h-24" />
-      </div>
     </div>
   );
 }

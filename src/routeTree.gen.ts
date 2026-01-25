@@ -11,9 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AppNotesIndexRouteImport } from './routes/_app.notes.index'
+import { Route as AppNotesRouteImport } from './routes/_app.notes'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
-import { Route as AppNotesNoteIdRouteImport } from './routes/_app.notes.$noteId'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -24,9 +23,9 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppNotesIndexRoute = AppNotesIndexRouteImport.update({
-  id: '/notes/',
-  path: '/notes/',
+const AppNotesRoute = AppNotesRouteImport.update({
+  id: '/notes',
+  path: '/notes',
   getParentRoute: () => AppRoute,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
@@ -34,44 +33,30 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppNotesNoteIdRoute = AppNotesNoteIdRouteImport.update({
-  id: '/notes/$noteId',
-  path: '/notes/$noteId',
-  getParentRoute: () => AppRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/notes/$noteId': typeof AppNotesNoteIdRoute
+  '/notes': typeof AppNotesRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/notes/': typeof AppNotesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/notes/$noteId': typeof AppNotesNoteIdRoute
+  '/notes': typeof AppNotesRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/notes': typeof AppNotesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
-  '/_app/notes/$noteId': typeof AppNotesNoteIdRoute
+  '/_app/notes': typeof AppNotesRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/_app/notes/': typeof AppNotesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/notes/$noteId' | '/api/auth/$' | '/notes/'
+  fullPaths: '/' | '/notes' | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/notes/$noteId' | '/api/auth/$' | '/notes'
-  id:
-    | '__root__'
-    | '/'
-    | '/_app'
-    | '/_app/notes/$noteId'
-    | '/api/auth/$'
-    | '/_app/notes/'
+  to: '/' | '/notes' | '/api/auth/$'
+  id: '__root__' | '/' | '/_app' | '/_app/notes' | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -96,11 +81,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/notes/': {
-      id: '/_app/notes/'
+    '/_app/notes': {
+      id: '/_app/notes'
       path: '/notes'
-      fullPath: '/notes/'
-      preLoaderRoute: typeof AppNotesIndexRouteImport
+      fullPath: '/notes'
+      preLoaderRoute: typeof AppNotesRouteImport
       parentRoute: typeof AppRoute
     }
     '/api/auth/$': {
@@ -110,24 +95,15 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/notes/$noteId': {
-      id: '/_app/notes/$noteId'
-      path: '/notes/$noteId'
-      fullPath: '/notes/$noteId'
-      preLoaderRoute: typeof AppNotesNoteIdRouteImport
-      parentRoute: typeof AppRoute
-    }
   }
 }
 
 interface AppRouteChildren {
-  AppNotesNoteIdRoute: typeof AppNotesNoteIdRoute
-  AppNotesIndexRoute: typeof AppNotesIndexRoute
+  AppNotesRoute: typeof AppNotesRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppNotesNoteIdRoute: AppNotesNoteIdRoute,
-  AppNotesIndexRoute: AppNotesIndexRoute,
+  AppNotesRoute: AppNotesRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
