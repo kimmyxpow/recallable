@@ -136,15 +136,3 @@
     @apply font-sans;
   }
 }
-
-.ProseMirror .ProseMirror-resizable {
-  @apply inline-block max-w-full;
-}
-
-.ProseMirror .ProseMirror-resizable img {
-  @apply max-w-full rounded-md;
-}
-
-.ProseMirror .ProseMirror-resizable .resize-handle {
-  @apply bg-border border border-background size-2 rounded-sm;
-}

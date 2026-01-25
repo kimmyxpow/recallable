@@ -9,7 +9,12 @@ import Image from "@tiptap/extension-image";
 import Audio from "@tiptap/extension-audio";
 import Dropcursor from "@tiptap/extension-dropcursor";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
+import { Table } from "@tiptap/extension-table";
+import { TableRow } from "@tiptap/extension-table-row";
+import { TableHeader } from "@tiptap/extension-table-header";
+import { TableCell } from "@tiptap/extension-table-cell";
 import { all, createLowlight } from "lowlight";
+import { TableInsertButton, TableContextMenu } from "./table-menu";
 import { Toggle } from "@/components/ui/toggle";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -142,6 +147,15 @@ export function NoteEditor({
       StarterKit.configure({ codeBlock: false }),
       CodeBlockLowlight.configure({ lowlight }),
       Dropcursor,
+      Table.configure({
+        resizable: true,
+        handleWidth: 5,
+        cellMinWidth: 80,
+        lastColumnResizable: true,
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
       Image.extend({
         addOptions() {
           return {
@@ -184,7 +198,7 @@ export function NoteEditor({
     editorProps: {
       attributes: {
         class:
-          'prose prose-sm sm:prose-base dark:prose-invert max-w-none focus:outline-none prose-img:m-0 prose-img:transition-all prose-img:rounded-md [&_.ProseMirror-selectednode_img]:outline-3 [&_.ProseMirror-selectednode_img]:outline-primary min-h-[500px] [&_[data-resize-handle]]:size-3 [&_[data-resize-state="true"]_img]:outline-neutral-800 [&_[data-resize-state="true"]_img]:outline [&_[data-resize-handle]]:bg-neutral-800 [&_[data-resize-handle]]:rounded-lg [&_[data-resize-handle="top-left"]]:cursor-nwse-resize [&_[data-resize-handle="top-right"]]:cursor-nesw-resize [&_[data-resize-handle="bottom-left"]]:cursor-nesw-resize [&_[data-resize-handle="bottom-right"]]:cursor-nwse-resize',
+          'prose prose-sm sm:prose-base dark:prose-invert max-w-none focus:outline-none prose-img:m-0 prose-img:transition-all prose-img:rounded-md [&_.ProseMirror-selectednode_img]:outline-3 [&_.ProseMirror-selectednode_img]:outline-primary min-h-[500px] [&_[data-resize-handle]]:size-3 [&_[data-resize-state="true"]_img]:outline-neutral-800 [&_[data-resize-state="true"]_img]:outline [&_[data-resize-handle]]:bg-neutral-800 [&_[data-resize-handle]]:rounded-lg [&_[data-resize-handle="top-left"]]:cursor-nwse-resize [&_[data-resize-handle="top-right"]]:cursor-nesw-resize [&_[data-resize-handle="bottom-left"]]:cursor-nesw-resize [&_[data-resize-handle="bottom-right"]]:cursor-nwse-resize prose-table:border-collapse prose-table:w-full prose-table:my-4 prose-table:overflow-hidden prose-table:rounded-md prose-table:[&_p]:m-0 prose-table:rounded-md prose-th:border prose-th:border-border prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:align-top prose-th:min-w-20 prose-th:bg-muted prose-th:font-medium prose-th:text-foreground prose-td:border prose-td:border-border prose-td:px-3 prose-td:py-2 prose-td:text-left prose-td:align-top prose-td:min-w-20 prose-td:bg-background [&_.selectedCell]:bg-primary/10 [&_.tableWrapper]:overflow-x-auto [&_.tableWrapper]:my-4 [&_.column-resize-handle]:pointer-events-none [&.resize-cursor]:cursor-col-resize',
       },
     },
   });
@@ -333,6 +347,7 @@ export function NoteEditor({
         isOrderedList: ctx.editor.isActive("orderedList"),
         isBlockquote: ctx.editor.isActive("blockquote"),
         isCodeBlock: ctx.editor.isActive("codeBlock"),
+        isTable: ctx.editor.isActive("table"),
       };
     },
     equalityFn: (prev, next) => {
@@ -348,7 +363,8 @@ export function NoteEditor({
         prev.isBulletList === next.isBulletList &&
         prev.isOrderedList === next.isOrderedList &&
         prev.isBlockquote === next.isBlockquote &&
-        prev.isCodeBlock === next.isCodeBlock
+        prev.isCodeBlock === next.isCodeBlock &&
+        prev.isTable === next.isTable
       );
     },
   });
@@ -479,6 +495,8 @@ export function NoteEditor({
         >
           <IconClearFormatting className="size-4" />
         </ToolbarButton>
+
+        {editorState?.isTable && <TableContextMenu editor={editor} />}
       </BubbleMenu>
 
       <FloatingMenu
@@ -566,6 +584,8 @@ export function NoteEditor({
         >
           <IconSeparatorHorizontal className="size-4" />
         </ToolbarButton>
+
+        <TableInsertButton editor={editor} />
       </FloatingMenu>
 
       <input
