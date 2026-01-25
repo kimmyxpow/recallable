@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
 import { internal } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
+import type { Id, Doc } from "./_generated/dataModel";
 
 export const list = query({
   args: {},
@@ -14,38 +14,132 @@ export const list = query({
     }
 
     return await ctx.db
-      .query("notes")
-      .withIndex("by_userId_updatedAt", (q) => q.eq("userId", user._id))
-      .order("desc")
+      .query("items")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .collect();
   },
 });
 
-export const get = query({
-  args: { noteId: v.id("notes") },
-  returns: v.union(v.any(), v.null()),
+export const listByParent = query({
+  args: { parentId: v.optional(v.id("items")) },
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const user = await authComponent.getAuthUser(ctx);
     if (!user) {
-      return null;
+      return [];
     }
 
-    const note = await ctx.db.get(args.noteId);
-    if (!note || note.userId !== user._id) {
-      return null;
-    }
-
-    return note;
+    return await ctx.db
+      .query("items")
+      .withIndex("by_userId_parentId", (q) =>
+        q.eq("userId", user._id).eq("parentId", args.parentId)
+      )
+      .collect();
   },
 });
 
-export const create = mutation({
-  args: {
-    title: v.optional(v.string()),
-    folderId: v.optional(v.id("folders")),
-    tagIds: v.optional(v.array(v.id("tags"))),
+export const listFoldersByParent = query({
+  args: { parentId: v.optional(v.id("items")) },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    const user = await authComponent.getAuthUser(ctx);
+    if (!user) {
+      return [];
+    }
+
+    const items = await ctx.db
+      .query("items")
+      .withIndex("by_userId_parentId", (q) =>
+        q.eq("userId", user._id).eq("parentId", args.parentId)
+      )
+      .collect();
+
+    return items.filter((item) => item.type === "folder");
   },
-  returns: v.id("notes"),
+});
+
+export const listNotesByParent = query({
+  args: { parentId: v.optional(v.id("items")) },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    const user = await authComponent.getAuthUser(ctx);
+    if (!user) {
+      return [];
+    }
+
+    const items = await ctx.db
+      .query("items")
+      .withIndex("by_userId_parentId", (q) =>
+        q.eq("userId", user._id).eq("parentId", args.parentId)
+      )
+      .collect();
+
+    return items.filter((item) => item.type === "note");
+  },
+});
+
+export const get = query({
+  args: { itemId: v.optional(v.id("items")) },
+  returns: v.union(v.any(), v.null()),
+  handler: async (ctx, args) => {
+    const user = await authComponent.getAuthUser(ctx);
+    if (!user || !args.itemId) {
+      return null;
+    }
+
+    const item = await ctx.db.get(args.itemId);
+    if (!item || item.userId !== user._id) {
+      return null;
+    }
+
+    return item;
+  },
+});
+
+export const getBreadcrumbs = query({
+  args: { itemId: v.optional(v.id("items")) },
+  returns: v.array(
+    v.object({
+      _id: v.string(),
+      title: v.string(),
+      type: v.union(v.literal("folder"), v.literal("note")),
+    })
+  ),
+  handler: async (ctx, args) => {
+    const user = await authComponent.getAuthUser(ctx);
+    if (!user || !args.itemId) {
+      return [];
+    }
+
+    const breadcrumbs: Array<{
+      _id: string;
+      title: string;
+      type: "folder" | "note";
+    }> = [];
+    let currentId: Id<"items"> | undefined = args.itemId;
+
+    while (currentId) {
+      const item: Doc<"items"> | null = await ctx.db.get(currentId);
+      if (!item || item.userId !== user._id) break;
+
+      breadcrumbs.unshift({
+        _id: item._id,
+        title: item.title,
+        type: item.type,
+      });
+      currentId = item.parentId;
+    }
+
+    return breadcrumbs;
+  },
+});
+
+export const createFolder = mutation({
+  args: {
+    title: v.string(),
+    parentId: v.optional(v.id("items")),
+  },
+  returns: v.id("items"),
   handler: async (ctx, args) => {
     const user = await authComponent.getAuthUser(ctx);
     if (!user) {
@@ -56,24 +150,82 @@ export const create = mutation({
     }
 
     const now = Date.now();
-    const noteId = await ctx.db.insert("notes", {
+    return await ctx.db.insert("items", {
       userId: user._id,
+      type: "folder",
+      title: args.title,
+      parentId: args.parentId,
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
+export const createNote = mutation({
+  args: {
+    title: v.optional(v.string()),
+    parentId: v.optional(v.id("items")),
+    tagIds: v.optional(v.array(v.id("tags"))),
+  },
+  returns: v.id("items"),
+  handler: async (ctx, args) => {
+    const user = await authComponent.getAuthUser(ctx);
+    if (!user) {
+      throw new ConvexError({
+        code: "UNAUTHENTICATED",
+        message: "Not authenticated",
+      });
+    }
+
+    const now = Date.now();
+    return await ctx.db.insert("items", {
+      userId: user._id,
+      type: "note",
       title: args.title ?? "Untitled",
+      parentId: args.parentId,
       content: undefined,
       imageStorageIds: [],
-      folderId: args.folderId,
       tagIds: args.tagIds,
       createdAt: now,
       updatedAt: now,
     });
+  },
+});
 
-    return noteId;
+export const updateTitle = mutation({
+  args: {
+    itemId: v.id("items"),
+    title: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const user = await authComponent.getAuthUser(ctx);
+    if (!user) {
+      throw new ConvexError({
+        code: "UNAUTHENTICATED",
+        message: "Not authenticated",
+      });
+    }
+
+    const item = await ctx.db.get(args.itemId);
+    if (!item || item.userId !== user._id) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Item not found",
+      });
+    }
+
+    await ctx.db.patch(args.itemId, {
+      title: args.title,
+      updatedAt: Date.now(),
+    });
+    return null;
   },
 });
 
 export const updateContent = mutation({
   args: {
-    noteId: v.id("notes"),
+    itemId: v.id("items"),
     content: v.any(),
   },
   returns: v.null(),
@@ -86,29 +238,37 @@ export const updateContent = mutation({
       });
     }
 
-    const note = await ctx.db.get(args.noteId);
-    if (!note || note.userId !== user._id) {
+    const item = await ctx.db.get(args.itemId);
+    if (!item || item.userId !== user._id) {
       throw new ConvexError({
         code: "NOT_FOUND",
-        message: "Note not found",
+        message: "Item not found",
+      });
+    }
+
+    if (item.type !== "note") {
+      throw new ConvexError({
+        code: "INVALID_OPERATION",
+        message: "Cannot update content of a folder",
       });
     }
 
     const title = extractTitleFromContent(args.content);
     const nextImageStorageIds = extractImageStorageIds(args.content);
-    const previousImageStorageIds = note.imageStorageIds ?? [];
+    const previousImageStorageIds = item.imageStorageIds ?? [];
     const removedStorageIds = previousImageStorageIds.filter(
       (storageId) => !nextImageStorageIds.includes(storageId)
     );
 
-    await ctx.db.patch(args.noteId, {
+    await ctx.db.patch(args.itemId, {
       content: args.content,
       imageStorageIds: nextImageStorageIds,
       title: title || "Untitled",
       updatedAt: Date.now(),
     });
+
     if (removedStorageIds.length > 0) {
-      await ctx.scheduler.runAfter(0, internal.notes.removeStorageFiles, {
+      await ctx.scheduler.runAfter(0, internal.items.removeStorageFiles, {
         storageIds: removedStorageIds,
       });
     }
@@ -186,10 +346,10 @@ function extractImageStorageIds(content: {
   return Array.from(storageIds);
 }
 
-export const updateTitle = mutation({
+export const move = mutation({
   args: {
-    noteId: v.id("notes"),
-    title: v.string(),
+    itemId: v.id("items"),
+    parentId: v.optional(v.id("items")),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -201,24 +361,64 @@ export const updateTitle = mutation({
       });
     }
 
-    const note = await ctx.db.get(args.noteId);
-    if (!note || note.userId !== user._id) {
+    const item = await ctx.db.get(args.itemId);
+    if (!item || item.userId !== user._id) {
       throw new ConvexError({
         code: "NOT_FOUND",
-        message: "Note not found",
+        message: "Item not found",
       });
     }
 
-    await ctx.db.patch(args.noteId, {
-      title: args.title,
+    if (args.parentId === args.itemId) {
+      throw new ConvexError({
+        code: "INVALID_OPERATION",
+        message: "Cannot move item into itself",
+      });
+    }
+
+    if (args.parentId) {
+      const targetParent = await ctx.db.get(args.parentId);
+      if (!targetParent || targetParent.userId !== user._id) {
+        throw new ConvexError({
+          code: "NOT_FOUND",
+          message: "Target folder not found",
+        });
+      }
+
+      if (targetParent.type !== "folder") {
+        throw new ConvexError({
+          code: "INVALID_OPERATION",
+          message: "Cannot move item into a note",
+        });
+      }
+
+      if (item.type === "folder") {
+        let currentId: Id<"items"> | undefined = args.parentId;
+        while (currentId) {
+          if (currentId === args.itemId) {
+            throw new ConvexError({
+              code: "INVALID_OPERATION",
+              message: "Cannot move folder into its own descendant",
+            });
+          }
+          const ancestor: Doc<"items"> | null = await ctx.db.get(currentId);
+          if (!ancestor || ancestor.userId !== user._id) break;
+          currentId = ancestor.parentId;
+        }
+      }
+    }
+
+    await ctx.db.patch(args.itemId, {
+      parentId: args.parentId,
       updatedAt: Date.now(),
     });
+
     return null;
   },
 });
 
 export const remove = mutation({
-  args: { noteId: v.id("notes") },
+  args: { itemId: v.id("items") },
   returns: v.null(),
   handler: async (ctx, args) => {
     const user = await authComponent.getAuthUser(ctx);
@@ -229,58 +429,42 @@ export const remove = mutation({
       });
     }
 
-    const note = await ctx.db.get(args.noteId);
-    if (!note || note.userId !== user._id) {
+    const item = await ctx.db.get(args.itemId);
+    if (!item || item.userId !== user._id) {
       throw new ConvexError({
         code: "NOT_FOUND",
-        message: "Note not found",
+        message: "Item not found",
       });
     }
 
-    await ctx.db.delete(args.noteId);
-    if (note.imageStorageIds?.length) {
-      await ctx.scheduler.runAfter(0, internal.notes.removeStorageFiles, {
-        storageIds: note.imageStorageIds,
-      });
-    }
-    return null;
-  },
-});
+    if (item.type === "folder") {
+      const children = await ctx.db
+        .query("items")
+        .withIndex("by_userId_parentId", (q) =>
+          q.eq("userId", user._id).eq("parentId", args.itemId)
+        )
+        .collect();
 
-export const updateFolder = mutation({
-  args: {
-    noteId: v.id("notes"),
-    folderId: v.optional(v.id("folders")),
-  },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx);
-    if (!user) {
-      throw new ConvexError({
-        code: "UNAUTHENTICATED",
-        message: "Not authenticated",
+      for (const child of children) {
+        await ctx.db.patch(child._id, { parentId: item.parentId });
+      }
+    }
+
+    await ctx.db.delete(args.itemId);
+
+    if (item.type === "note" && item.imageStorageIds?.length) {
+      await ctx.scheduler.runAfter(0, internal.items.removeStorageFiles, {
+        storageIds: item.imageStorageIds,
       });
     }
 
-    const note = await ctx.db.get(args.noteId);
-    if (!note || note.userId !== user._id) {
-      throw new ConvexError({
-        code: "NOT_FOUND",
-        message: "Note not found",
-      });
-    }
-
-    await ctx.db.patch(args.noteId, {
-      folderId: args.folderId,
-      updatedAt: Date.now(),
-    });
     return null;
   },
 });
 
 export const updateTags = mutation({
   args: {
-    noteId: v.id("notes"),
+    itemId: v.id("items"),
     tagIds: v.array(v.id("tags")),
   },
   returns: v.null(),
@@ -293,15 +477,15 @@ export const updateTags = mutation({
       });
     }
 
-    const note = await ctx.db.get(args.noteId);
-    if (!note || note.userId !== user._id) {
+    const item = await ctx.db.get(args.itemId);
+    if (!item || item.userId !== user._id) {
       throw new ConvexError({
         code: "NOT_FOUND",
-        message: "Note not found",
+        message: "Item not found",
       });
     }
 
-    await ctx.db.patch(args.noteId, {
+    await ctx.db.patch(args.itemId, {
       tagIds: args.tagIds,
       updatedAt: Date.now(),
     });
@@ -311,7 +495,7 @@ export const updateTags = mutation({
 
 export const addTag = mutation({
   args: {
-    noteId: v.id("notes"),
+    itemId: v.id("items"),
     tagId: v.id("tags"),
   },
   returns: v.null(),
@@ -324,17 +508,17 @@ export const addTag = mutation({
       });
     }
 
-    const note = await ctx.db.get(args.noteId);
-    if (!note || note.userId !== user._id) {
+    const item = await ctx.db.get(args.itemId);
+    if (!item || item.userId !== user._id) {
       throw new ConvexError({
         code: "NOT_FOUND",
-        message: "Note not found",
+        message: "Item not found",
       });
     }
 
-    const currentTags = note.tagIds ?? [];
+    const currentTags = item.tagIds ?? [];
     if (!currentTags.includes(args.tagId)) {
-      await ctx.db.patch(args.noteId, {
+      await ctx.db.patch(args.itemId, {
         tagIds: [...currentTags, args.tagId],
         updatedAt: Date.now(),
       });
@@ -345,7 +529,7 @@ export const addTag = mutation({
 
 export const removeTag = mutation({
   args: {
-    noteId: v.id("notes"),
+    itemId: v.id("items"),
     tagId: v.id("tags"),
   },
   returns: v.null(),
@@ -358,38 +542,20 @@ export const removeTag = mutation({
       });
     }
 
-    const note = await ctx.db.get(args.noteId);
-    if (!note || note.userId !== user._id) {
+    const item = await ctx.db.get(args.itemId);
+    if (!item || item.userId !== user._id) {
       throw new ConvexError({
         code: "NOT_FOUND",
-        message: "Note not found",
+        message: "Item not found",
       });
     }
 
-    const currentTags = note.tagIds ?? [];
-    await ctx.db.patch(args.noteId, {
+    const currentTags = item.tagIds ?? [];
+    await ctx.db.patch(args.itemId, {
       tagIds: currentTags.filter((id) => id !== args.tagId),
       updatedAt: Date.now(),
     });
     return null;
-  },
-});
-
-export const listByFolder = query({
-  args: { folderId: v.optional(v.id("folders")) },
-  returns: v.array(v.any()),
-  handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx);
-    if (!user) {
-      return [];
-    }
-
-    return await ctx.db
-      .query("notes")
-      .withIndex("by_userId_folderId", (q) =>
-        q.eq("userId", user._id).eq("folderId", args.folderId)
-      )
-      .collect();
   },
 });
 
@@ -402,12 +568,14 @@ export const listByTag = query({
       return [];
     }
 
-    const allNotes = await ctx.db
-      .query("notes")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+    const allItems = await ctx.db
+      .query("items")
+      .withIndex("by_userId_type", (q) =>
+        q.eq("userId", user._id).eq("type", "note")
+      )
       .collect();
 
-    return allNotes.filter((note) => note.tagIds?.includes(args.tagId));
+    return allItems.filter((item) => item.tagIds?.includes(args.tagId));
   },
 });
 
@@ -452,11 +620,14 @@ export const cleanupUnusedImages = internalMutation({
   handler: async (ctx, args) => {
     const limit = args.limit ?? 200;
     const cutoffTime = Date.now() - args.maxAgeMs;
-    const notes = await ctx.db.query("notes").collect();
+    const items = await ctx.db
+      .query("items")
+      .filter((q) => q.eq(q.field("type"), "note"))
+      .collect();
     const usedStorageIds = new Set<Id<"_storage">>();
 
-    for (const note of notes) {
-      for (const storageId of note.imageStorageIds ?? []) {
+    for (const item of items) {
+      for (const storageId of item.imageStorageIds ?? []) {
         usedStorageIds.add(storageId);
       }
     }

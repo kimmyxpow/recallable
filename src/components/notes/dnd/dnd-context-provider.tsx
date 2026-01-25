@@ -15,14 +15,12 @@ import type { DragData, DropTargetData } from "./types";
 
 type DndContextProviderProps = {
   children: ReactNode;
-  onMoveNote: (noteId: string, targetFolderId: string | undefined) => void;
-  onMoveFolder: (folderId: string, targetParentId: string | undefined) => void;
+  onMoveItem: (itemId: string, targetParentId: string | undefined) => void;
 };
 
 export function DndContextProvider({
   children,
-  onMoveNote,
-  onMoveFolder,
+  onMoveItem,
 }: DndContextProviderProps) {
   const [activeItem, setActiveItem] = useState<DragData | null>(null);
 
@@ -59,28 +57,16 @@ export function DndContextProvider({
 
     if (!dragData || !dropData) return;
 
-    if (dragData.type === "note") {
-      if (dropData.type === "folder") {
-        if (dragData.currentFolderId !== dropData.folderId) {
-          onMoveNote(dragData.noteId, dropData.folderId);
-        }
-      } else if (dropData.type === "parent-zone") {
-        if (dragData.currentFolderId !== dropData.targetFolderId) {
-          onMoveNote(dragData.noteId, dropData.targetFolderId);
-        }
+    if (dropData.type === "folder") {
+      if (
+        dragData.itemId !== dropData.itemId &&
+        dragData.parentId !== dropData.itemId
+      ) {
+        onMoveItem(dragData.itemId, dropData.itemId);
       }
-    } else if (dragData.type === "folder") {
-      if (dropData.type === "folder") {
-        if (
-          dragData.folderId !== dropData.folderId &&
-          dragData.parentId !== dropData.folderId
-        ) {
-          onMoveFolder(dragData.folderId, dropData.folderId);
-        }
-      } else if (dropData.type === "parent-zone") {
-        if (dragData.parentId !== dropData.targetFolderId) {
-          onMoveFolder(dragData.folderId, dropData.targetFolderId);
-        }
+    } else if (dropData.type === "parent-zone") {
+      if (dragData.parentId !== dropData.targetParentId) {
+        onMoveItem(dragData.itemId, dropData.targetParentId);
       }
     }
   }
@@ -117,7 +103,7 @@ function DragOverlayItem({ data }: { data: DragData }) {
         <DocumentIcon className="size-4 text-primary shrink-0" />
       )}
       <span className="text-sm font-medium truncate max-w-[180px]">
-        {data.type === "folder" ? data.name : data.title}
+        {data.title}
       </span>
     </div>
   );

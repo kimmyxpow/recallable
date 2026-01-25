@@ -2,10 +2,11 @@ import { useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 import type { FolderDropTarget, DragData } from "./types";
+import type { Id } from "../../../../convex/_generated/dataModel";
 
 type DroppableFolderProps = {
   id: string;
-  folderId: string;
+  itemId: Id<"items">;
   children: ReactNode;
   className?: string;
   activeItem: DragData | null;
@@ -13,14 +14,14 @@ type DroppableFolderProps = {
 
 export function DroppableFolder({
   id,
-  folderId,
+  itemId,
   children,
   className,
   activeItem,
 }: DroppableFolderProps) {
   const data: FolderDropTarget = {
     type: "folder",
-    folderId: folderId as FolderDropTarget["folderId"],
+    itemId,
   };
 
   const { isOver, setNodeRef } = useDroppable({
@@ -31,7 +32,7 @@ export function DroppableFolder({
   const canDrop =
     activeItem &&
     (activeItem.type === "note" ||
-      (activeItem.type === "folder" && activeItem.folderId !== folderId));
+      (activeItem.type === "folder" && activeItem.itemId !== itemId));
 
   const isValidDropTarget = isOver && canDrop;
 

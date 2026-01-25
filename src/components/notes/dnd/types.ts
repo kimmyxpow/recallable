@@ -4,16 +4,16 @@ export type DragItemType = "note" | "folder";
 
 export type NoteDragData = {
   type: "note";
-  noteId: Id<"notes">;
+  itemId: Id<"items">;
   title: string;
-  currentFolderId?: Id<"folders">;
+  parentId?: Id<"items">;
 };
 
 export type FolderDragData = {
   type: "folder";
-  folderId: Id<"folders">;
-  name: string;
-  parentId?: Id<"folders">;
+  itemId: Id<"items">;
+  title: string;
+  parentId?: Id<"items">;
 };
 
 export type DragData = NoteDragData | FolderDragData;
@@ -22,12 +22,12 @@ export type DropTargetType = "folder" | "parent-zone";
 
 export type FolderDropTarget = {
   type: "folder";
-  folderId: Id<"folders">;
+  itemId: Id<"items">;
 };
 
 export type ParentZoneDropTarget = {
   type: "parent-zone";
-  targetFolderId?: Id<"folders">;
+  targetParentId?: Id<"items">;
 };
 
 export type DropTargetData = FolderDropTarget | ParentZoneDropTarget;

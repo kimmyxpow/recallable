@@ -28,11 +28,11 @@ import { formatDistanceToNow } from "date-fns";
 
 export const Route = createFileRoute("/_app/notes")({
   validateSearch: (search: Record<string, unknown>) => ({
-    folderId: (search.folderId as string) || undefined,
+    parentId: (search.parentId as string) || undefined,
     noteId: (search.noteId as string) || undefined,
   }),
   loaderDeps: ({ search }) => ({
-    folderId: search.folderId,
+    parentId: search.parentId,
     noteId: search.noteId,
   }),
   loader: async ({ context, deps }) => {
@@ -41,28 +41,23 @@ export const Route = createFileRoute("/_app/notes")({
         convexQuery(api.auth.getCurrentUser, {})
       ),
       context.queryClient.ensureQueryData(
-        convexQuery(api.folders.listByParent, {
-          parentId: deps.folderId as Id<"folders"> | undefined,
-        })
-      ),
-      context.queryClient.ensureQueryData(
-        convexQuery(api.notes.listByFolder, {
-          folderId: deps.folderId as Id<"folders"> | undefined,
+        convexQuery(api.items.listByParent, {
+          parentId: deps.parentId as Id<"items"> | undefined,
         })
       ),
     ]);
 
-    if (deps.folderId) {
+    if (deps.parentId) {
       await context.queryClient.ensureQueryData(
-        convexQuery(api.folders.get, {
-          folderId: deps.folderId as Id<"folders">,
+        convexQuery(api.items.get, {
+          itemId: deps.parentId as Id<"items">,
         })
       );
     }
 
     if (deps.noteId) {
       await context.queryClient.ensureQueryData(
-        convexQuery(api.notes.get, { noteId: deps.noteId as Id<"notes"> })
+        convexQuery(api.items.get, { itemId: deps.noteId as Id<"items"> })
       );
     }
   },
@@ -101,12 +96,12 @@ function NoteEditorPanel({
   saveStatus,
   onSaveStatusChange,
 }: {
-  noteId: Id<"notes">;
+  noteId: Id<"items">;
   saveStatus: SaveStatus;
   onSaveStatusChange: (status: SaveStatus) => void;
 }) {
   const { data: note } = useSuspenseQuery(
-    convexQuery(api.notes.get, { noteId })
+    convexQuery(api.items.get, { itemId: noteId })
   );
 
   if (!note) {
@@ -171,34 +166,34 @@ function EmptyEditorPanel() {
 }
 
 function NotesPage() {
-  const { folderId, noteId } = Route.useSearch();
+  const { parentId, noteId } = Route.useSearch();
   const navigate = Route.useNavigate();
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const activeNoteId = noteId;
 
-  const handleSelectNote = (newNoteId: Id<"notes">) => {
+  const handleSelectNote = (newNoteId: Id<"items">) => {
     navigate({
-      search: { folderId, noteId: newNoteId },
+      search: { parentId, noteId: newNoteId },
     });
   };
 
-  const handleNavigateFolder = (newFolderId?: Id<"folders">) => {
+  const handleNavigateFolder = (newParentId?: Id<"items">) => {
     navigate({
-      search: { folderId: newFolderId, noteId: activeNoteId || undefined },
+      search: { parentId: newParentId, noteId: activeNoteId || undefined },
     });
   };
 
   return (
     <div className="flex h-screen max-w-7xl mx-auto">
       <FolderSidebar
-        currentFolderId={folderId as Id<"folders"> | undefined}
-        selectedNoteId={activeNoteId as Id<"notes"> | undefined}
+        currentParentId={parentId as Id<"items"> | undefined}
+        selectedNoteId={activeNoteId as Id<"items"> | undefined}
         onSelectNote={handleSelectNote}
         onNavigateFolder={handleNavigateFolder}
       />
       {activeNoteId ? (
         <NoteEditorPanel
-          noteId={activeNoteId as Id<"notes">}
+          noteId={activeNoteId as Id<"items">}
           saveStatus={saveStatus}
           onSaveStatusChange={setSaveStatus}
         />

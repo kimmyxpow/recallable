@@ -2,7 +2,7 @@ import { useTransition, useState, useRef, useEffect } from "react";
 import { convexQuery, useConvexMutation } from "@convex-dev/react-query";
 import { useSuspenseQuery, useQuery } from "@tanstack/react-query";
 import { api } from "../../../convex/_generated/api";
-import type { Doc, Id } from "../../../convex/_generated/dataModel";
+import type { Id } from "../../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -52,68 +52,68 @@ import { ParentDropZone } from "./dnd/parent-drop-zone";
 import type { DragData, FolderDragData, NoteDragData } from "./dnd/types";
 import { useDndMonitor } from "@dnd-kit/core";
 
+type Item = {
+  _id: Id<"items">;
+  type: "folder" | "note";
+  title: string;
+  parentId?: Id<"items">;
+  createdAt: number;
+  updatedAt: number;
+};
+
 export function FolderSidebar({
-  currentFolderId,
+  currentParentId,
   selectedNoteId,
   onSelectNote,
   onNavigateFolder,
 }: {
-  currentFolderId?: Id<"folders">;
-  selectedNoteId?: Id<"notes">;
-  onSelectNote: (noteId: Id<"notes">) => void;
-  onNavigateFolder: (folderId?: Id<"folders">) => void;
+  currentParentId?: Id<"items">;
+  selectedNoteId?: Id<"items">;
+  onSelectNote: (noteId: Id<"items">) => void;
+  onNavigateFolder: (parentId?: Id<"items">) => void;
 }) {
   const [isLoggingOut, startLogoutTransition] = useTransition();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [isCreatingNote, startCreateNoteTransition] = useTransition();
   const [isCreatingFolder, startCreateFolderTransition] = useTransition();
-  const [isDeletingNote, startDeleteNoteTransition] = useTransition();
-  const [isDeletingFolder, startDeleteFolderTransition] = useTransition();
-  const [isRenamingFolder, startRenameFolderTransition] = useTransition();
+  const [isDeletingItem, startDeleteItemTransition] = useTransition();
+  const [isRenamingItem, startRenameItemTransition] = useTransition();
 
-  const [noteToDelete, setNoteToDelete] = useState<Doc<"notes"> | null>(null);
-  const [folderToDelete, setFolderToDelete] = useState<Doc<"folders"> | null>(
-    null
-  );
-  const [folderToRename, setFolderToRename] = useState<Doc<"folders"> | null>(
-    null
-  );
-  const [newFolderName, setNewFolderName] = useState("");
+  const [itemToDelete, setItemToDelete] = useState<Item | null>(null);
+  const [itemToRename, setItemToRename] = useState<Item | null>(null);
+  const [newName, setNewName] = useState("");
   const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
   const [folderName, setFolderName] = useState("");
 
   const [slideDirection, setSlideDirection] = useState<"left" | "right">(
     "left"
   );
-  const prevFolderIdRef = useRef<Id<"folders"> | undefined>(currentFolderId);
+  const prevParentIdRef = useRef<Id<"items"> | undefined>(currentParentId);
 
   useEffect(() => {
-    if (prevFolderIdRef.current !== currentFolderId) {
-      prevFolderIdRef.current = currentFolderId;
+    if (prevParentIdRef.current !== currentParentId) {
+      prevParentIdRef.current = currentParentId;
     }
-  }, [currentFolderId]);
+  }, [currentParentId]);
 
   const { data: currentFolder } = useQuery(
-    convexQuery(api.folders.get, {
-      folderId: currentFolderId as Id<"folders">,
+    convexQuery(api.items.get, {
+      itemId: currentParentId as Id<"items">,
     })
   );
 
-  const { data: folders } = useSuspenseQuery(
-    convexQuery(api.folders.listByParent, { parentId: currentFolderId })
+  const { data: items } = useSuspenseQuery(
+    convexQuery(api.items.listByParent, { parentId: currentParentId })
   );
 
-  const { data: notes } = useSuspenseQuery(
-    convexQuery(api.notes.listByFolder, { folderId: currentFolderId })
-  );
+  const folders = items.filter((item: Item) => item.type === "folder");
+  const notes = items.filter((item: Item) => item.type === "note");
 
-  const createNoteMutation = useConvexMutation(api.notes.create);
-  const removeNoteMutation = useConvexMutation(api.notes.remove);
-  const createFolderMutation = useConvexMutation(api.folders.create);
-  const removeFolderMutation = useConvexMutation(api.folders.remove);
-  const updateFolderMutation = useConvexMutation(api.folders.update);
-  const moveFolderMutation = useConvexMutation(api.folders.move);
-  const updateNoteFolderMutation = useConvexMutation(api.notes.updateFolder);
+  const createNoteMutation = useConvexMutation(api.items.createNote);
+  const createFolderMutation = useConvexMutation(api.items.createFolder);
+  const removeItemMutation = useConvexMutation(api.items.remove);
+  const updateTitleMutation = useConvexMutation(api.items.updateTitle);
+  const moveItemMutation = useConvexMutation(api.items.move);
 
   const handleLogout = () => {
     startLogoutTransition(async () => {
@@ -125,7 +125,7 @@ export function FolderSidebar({
 
   const handleCreateNote = () => {
     startCreateNoteTransition(async () => {
-      const newNoteId = await createNoteMutation({ folderId: currentFolderId });
+      const newNoteId = await createNoteMutation({ parentId: currentParentId });
       onSelectNote(newNoteId);
     });
   };
@@ -134,45 +134,37 @@ export function FolderSidebar({
     if (!folderName.trim()) return;
     startCreateFolderTransition(async () => {
       await createFolderMutation({
-        name: folderName.trim(),
-        parentId: currentFolderId,
+        title: folderName.trim(),
+        parentId: currentParentId,
       });
       setFolderName("");
       setShowNewFolderDialog(false);
     });
   };
 
-  const handleDeleteNote = () => {
-    if (!noteToDelete) return;
-    startDeleteNoteTransition(async () => {
-      await removeNoteMutation({ noteId: noteToDelete._id });
-      setNoteToDelete(null);
+  const handleDeleteItem = () => {
+    if (!itemToDelete) return;
+    startDeleteItemTransition(async () => {
+      await removeItemMutation({ itemId: itemToDelete._id });
+      setItemToDelete(null);
     });
   };
 
-  const handleDeleteFolder = () => {
-    if (!folderToDelete) return;
-    startDeleteFolderTransition(async () => {
-      await removeFolderMutation({ folderId: folderToDelete._id });
-      setFolderToDelete(null);
-    });
-  };
-
-  const handleRenameFolder = () => {
-    if (!folderToRename || !newFolderName.trim()) return;
-    startRenameFolderTransition(async () => {
-      await updateFolderMutation({
-        folderId: folderToRename._id,
-        name: newFolderName.trim(),
+  const handleRenameItem = () => {
+    if (!itemToRename || !newName.trim()) return;
+    startRenameItemTransition(async () => {
+      await updateTitleMutation({
+        itemId: itemToRename._id,
+        title: newName.trim(),
       });
-      setFolderToRename(null);
-      setNewFolderName("");
+      setItemToRename(null);
+      setNewName("");
     });
   };
 
-  const openRenameDialog = (folder: Doc<"folders">) => {
-    setFolderToRename(folder);
-    setNewFolderName(folder.name);
+  const openRenameDialog = (item: Item) => {
+    setItemToRename(item);
+    setNewName(item.title);
   };
 
   const handleGoBack = () => {
@@ -184,28 +176,18 @@ export function FolderSidebar({
     }
   };
 
-  const handleNavigateIntoFolder = (folderId: Id<"folders">) => {
+  const handleNavigateIntoFolder = (folderId: Id<"items">) => {
     setSlideDirection("left");
     onNavigateFolder(folderId);
   };
 
-  const handleMoveNote = (
-    noteId: string,
-    targetFolderId: string | undefined
-  ) => {
-    updateNoteFolderMutation({
-      noteId: noteId as Id<"notes">,
-      folderId: targetFolderId as Id<"folders"> | undefined,
-    });
-  };
-
-  const handleMoveFolder = (
-    folderId: string,
+  const handleMoveItem = (
+    itemId: string,
     targetParentId: string | undefined
   ) => {
-    moveFolderMutation({
-      folderId: folderId as Id<"folders">,
-      parentId: targetParentId as Id<"folders"> | undefined,
+    moveItemMutation({
+      itemId: itemId as Id<"items">,
+      parentId: targetParentId as Id<"items"> | undefined,
     });
   };
 
@@ -232,12 +214,9 @@ export function FolderSidebar({
 
   return (
     <>
-      <DndContextProvider
-        onMoveNote={handleMoveNote}
-        onMoveFolder={handleMoveFolder}
-      >
+      <DndContextProvider onMoveItem={handleMoveItem}>
         <FolderSidebarContent
-          currentFolderId={currentFolderId}
+          currentParentId={currentParentId}
           currentFolder={currentFolder}
           folders={folders}
           notes={notes}
@@ -255,9 +234,8 @@ export function FolderSidebar({
             setFolderName("");
             setShowNewFolderDialog(true);
           }}
-          onDeleteNote={setNoteToDelete}
-          onDeleteFolder={setFolderToDelete}
-          onRenameFolder={openRenameDialog}
+          onDeleteItem={setItemToDelete}
+          onRenameItem={openRenameDialog}
           onShowLogoutDialog={() => setShowLogoutDialog(true)}
         />
       </DndContextProvider>
@@ -317,31 +295,34 @@ export function FolderSidebar({
       </Dialog>
 
       <Dialog
-        open={!!folderToRename}
-        onOpenChange={(open) => !open && setFolderToRename(null)}
+        open={!!itemToRename}
+        onOpenChange={(open) => !open && setItemToRename(null)}
       >
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Rename folder</DialogTitle>
+            <DialogTitle>
+              Rename {itemToRename?.type === "folder" ? "folder" : "note"}
+            </DialogTitle>
             <DialogDescription>
-              Enter a new name for this folder.
+              Enter a new name for this{" "}
+              {itemToRename?.type === "folder" ? "folder" : "note"}.
             </DialogDescription>
           </DialogHeader>
           <Input
-            value={newFolderName}
-            onChange={(e) => setNewFolderName(e.target.value)}
-            placeholder="Folder name"
-            onKeyDown={(e) => e.key === "Enter" && handleRenameFolder()}
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="Name"
+            onKeyDown={(e) => e.key === "Enter" && handleRenameItem()}
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setFolderToRename(null)}>
+            <Button variant="outline" onClick={() => setItemToRename(null)}>
               Cancel
             </Button>
             <Button
-              onClick={handleRenameFolder}
-              disabled={isRenamingFolder || !newFolderName.trim()}
+              onClick={handleRenameItem}
+              disabled={isRenamingItem || !newName.trim()}
             >
-              {isRenamingFolder && <Spinner />}
+              {isRenamingItem && <Spinner />}
               Rename
             </Button>
           </DialogFooter>
@@ -349,56 +330,31 @@ export function FolderSidebar({
       </Dialog>
 
       <AlertDialog
-        open={!!noteToDelete}
-        onOpenChange={(open) => !open && setNoteToDelete(null)}
+        open={!!itemToDelete}
+        onOpenChange={(open) => !open && setItemToDelete(null)}
       >
         <AlertDialogContent className="max-w-sm">
           <AlertDialogHeader className="place-items-start text-start">
-            <AlertDialogTitle>Delete note?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Delete {itemToDelete?.type === "folder" ? "folder" : "note"}?
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{noteToDelete?.title}"? This
-              action cannot be undone.
+              {itemToDelete?.type === "folder"
+                ? `Are you sure you want to delete "${itemToDelete?.title}"? Contents will be moved to the parent folder.`
+                : `Are you sure you want to delete "${itemToDelete?.title}"? This action cannot be undone.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeletingNote}>
+            <AlertDialogCancel disabled={isDeletingItem}>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
-              onClick={handleDeleteNote}
-              disabled={isDeletingNote}
+              onClick={handleDeleteItem}
+              disabled={isDeletingItem}
             >
-              {isDeletingNote && <Spinner />}
-              {isDeletingNote ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog
-        open={!!folderToDelete}
-        onOpenChange={(open) => !open && setFolderToDelete(null)}
-      >
-        <AlertDialogContent className="max-w-sm">
-          <AlertDialogHeader className="place-items-start text-start">
-            <AlertDialogTitle>Delete folder?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{folderToDelete?.name}"? Contents
-              will be moved to the parent folder.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeletingFolder}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={handleDeleteFolder}
-              disabled={isDeletingFolder}
-            >
-              {isDeletingFolder && <Spinner />}
-              {isDeletingFolder ? "Deleting..." : "Delete"}
+              {isDeletingItem && <Spinner />}
+              {isDeletingItem ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -408,7 +364,7 @@ export function FolderSidebar({
 }
 
 function FolderSidebarContent({
-  currentFolderId,
+  currentParentId,
   currentFolder,
   folders,
   notes,
@@ -423,16 +379,15 @@ function FolderSidebarContent({
   onGoBack,
   onCreateNote,
   onCreateFolder,
-  onDeleteNote,
-  onDeleteFolder,
-  onRenameFolder,
+  onDeleteItem,
+  onRenameItem,
   onShowLogoutDialog,
 }: {
-  currentFolderId?: Id<"folders">;
-  currentFolder: Doc<"folders"> | null | undefined;
-  folders: Doc<"folders">[];
-  notes: Doc<"notes">[];
-  selectedNoteId?: Id<"notes">;
+  currentParentId?: Id<"items">;
+  currentFolder: Item | null | undefined;
+  folders: Item[];
+  notes: Item[];
+  selectedNoteId?: Id<"items">;
   slideDirection: "left" | "right";
   slideVariants: {
     enter: (direction: "left" | "right") => { x: number; opacity: number };
@@ -442,14 +397,13 @@ function FolderSidebarContent({
   springTransition: { type: "spring"; stiffness: number; damping: number };
   isCreatingNote: boolean;
   isCreatingFolder: boolean;
-  onSelectNote: (noteId: Id<"notes">) => void;
-  onNavigateIntoFolder: (folderId: Id<"folders">) => void;
+  onSelectNote: (noteId: Id<"items">) => void;
+  onNavigateIntoFolder: (folderId: Id<"items">) => void;
   onGoBack: () => void;
   onCreateNote: () => void;
   onCreateFolder: () => void;
-  onDeleteNote: (note: Doc<"notes">) => void;
-  onDeleteFolder: (folder: Doc<"folders">) => void;
-  onRenameFolder: (folder: Doc<"folders">) => void;
+  onDeleteItem: (item: Item) => void;
+  onRenameItem: (item: Item) => void;
   onShowLogoutDialog: () => void;
 }) {
   const [isDragging, setIsDragging] = useState(false);
@@ -540,7 +494,7 @@ function FolderSidebarContent({
       <div className="flex-1 overflow-hidden relative bg-white rounded-lg">
         <AnimatePresence mode="wait" custom={slideDirection}>
           <motion.div
-            key={currentFolderId ?? "root"}
+            key={currentParentId ?? "root"}
             custom={slideDirection}
             variants={slideVariants}
             initial="enter"
@@ -550,10 +504,10 @@ function FolderSidebarContent({
             className="absolute inset-0 overflow-auto"
           >
             <ParentDropZone
-              targetFolderId={currentFolder?.parentId}
-              isVisible={!!currentFolderId}
+              targetParentId={currentFolder?.parentId}
+              isVisible={!!currentParentId}
               isDragging={isDragging}
-              currentFolderName={currentFolder?.name}
+              currentFolderName={currentFolder?.title}
               onNavigateBack={onGoBack}
             />
 
@@ -570,8 +524,8 @@ function FolderSidebarContent({
                 {folders.map((folder, index) => {
                   const folderData: FolderDragData = {
                     type: "folder",
-                    folderId: folder._id,
-                    name: folder.name,
+                    itemId: folder._id,
+                    title: folder.title,
                     parentId: folder.parentId,
                   };
 
@@ -579,7 +533,7 @@ function FolderSidebarContent({
                     <DroppableFolder
                       key={folder._id}
                       id={`droppable-folder-${folder._id}`}
-                      folderId={folder._id}
+                      itemId={folder._id}
                       activeItem={activeItem}
                     >
                       <DraggableItem
@@ -597,7 +551,7 @@ function FolderSidebarContent({
                             "group flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent/30 cursor-grab active:cursor-grabbing",
                             isDragging &&
                               activeItem?.type === "folder" &&
-                              (activeItem as FolderDragData).folderId ===
+                              (activeItem as FolderDragData).itemId ===
                                 folder._id &&
                               "opacity-50"
                           )}
@@ -605,7 +559,7 @@ function FolderSidebarContent({
                         >
                           <IconFolder2BoldDuotone className="size-4 text-foreground/60 shrink-0" />
                           <span className="text-sm truncate flex-1">
-                            {folder.name}
+                            {folder.title}
                           </span>
                           <DropdownMenu>
                             <DropdownMenuTrigger
@@ -624,7 +578,7 @@ function FolderSidebarContent({
                               <DropdownMenuItem
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  onRenameFolder(folder);
+                                  onRenameItem(folder);
                                 }}
                               >
                                 <IconPenBoldDuotone className="text-foreground/60" />
@@ -634,7 +588,7 @@ function FolderSidebarContent({
                                 variant="destructive"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  onDeleteFolder(folder);
+                                  onDeleteItem(folder);
                                 }}
                               >
                                 <IconTrashBinTrashBoldDuotone className="text-foreground/60" />
@@ -651,9 +605,9 @@ function FolderSidebarContent({
                 {notes.map((note, index) => {
                   const noteData: NoteDragData = {
                     type: "note",
-                    noteId: note._id,
+                    itemId: note._id,
                     title: note.title,
-                    currentFolderId: note.folderId,
+                    parentId: note.parentId,
                   };
 
                   return (
@@ -676,7 +630,7 @@ function FolderSidebarContent({
                             : "hover:bg-accent/30",
                           isDragging &&
                             activeItem?.type === "note" &&
-                            (activeItem as NoteDragData).noteId === note._id &&
+                            (activeItem as NoteDragData).itemId === note._id &&
                             "opacity-50"
                         )}
                         onClick={() => onSelectNote(note._id)}
@@ -705,7 +659,7 @@ function FolderSidebarContent({
                               variant="destructive"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                onDeleteNote(note);
+                                onDeleteItem(note);
                               }}
                             >
                               <IconTrashBinTrashBoldDuotone className="text-foreground/60" />

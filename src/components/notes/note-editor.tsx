@@ -106,17 +106,17 @@ export function NoteEditor({
   initialContent,
   onSaveStatusChange,
 }: {
-  noteId: Id<"notes">;
+  noteId: Id<"items">;
   initialContent: TiptapContent | undefined;
   onSaveStatusChange: (status: SaveStatus) => void;
 }) {
   const convex = useConvex();
-  const updateContentMutation = useConvexMutation(api.notes.updateContent);
+  const updateContentMutation = useConvexMutation(api.items.updateContent);
   const generateImageUploadUrl = useConvexMutation(
-    api.notes.generateImageUploadUrl
+    api.items.generateImageUploadUrl
   );
   const generateAudioUploadUrl = useConvexMutation(
-    api.notes.generateAudioUploadUrl
+    api.items.generateAudioUploadUrl
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
@@ -126,7 +126,7 @@ export function NoteEditor({
     async (content: TiptapContent) => {
       onSaveStatusChange("saving");
       try {
-        await updateContentMutation({ noteId, content });
+        await updateContentMutation({ itemId: noteId, content });
         onSaveStatusChange("saved");
         setTimeout(() => onSaveStatusChange("idle"), 2000);
       } catch {
@@ -215,7 +215,7 @@ export function NoteEditor({
         const { storageId } = (await result.json()) as {
           storageId: Id<"_storage">;
         };
-        const url = await convex.query(api.notes.getImageUrl, { storageId });
+        const url = await convex.query(api.items.getImageUrl, { storageId });
         if (!url) {
           throw new Error("Image URL unavailable");
         }
@@ -273,7 +273,7 @@ export function NoteEditor({
         const { storageId } = (await result.json()) as {
           storageId: Id<"_storage">;
         };
-        const url = await convex.query(api.notes.getImageUrl, { storageId });
+        const url = await convex.query(api.items.getImageUrl, { storageId });
         if (!url) {
           throw new Error("Audio URL unavailable");
         }

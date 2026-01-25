@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
+import type { Id } from "./_generated/dataModel";
 
 export const list = query({
   args: {},
@@ -85,15 +86,15 @@ export const remove = mutation({
       throw new Error("Tag not found");
     }
 
-    const notesWithTag = await ctx.db
-      .query("notes")
+    const itemsWithTag = await ctx.db
+      .query("items")
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .collect();
 
-    for (const note of notesWithTag) {
-      if (note.tagIds?.includes(args.tagId)) {
-        await ctx.db.patch(note._id, {
-          tagIds: note.tagIds.filter((id) => id !== args.tagId),
+    for (const item of itemsWithTag) {
+      if (item.tagIds?.includes(args.tagId)) {
+        await ctx.db.patch(item._id, {
+          tagIds: item.tagIds.filter((id: Id<"tags">) => id !== args.tagId),
         });
       }
     }

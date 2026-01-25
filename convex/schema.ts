@@ -2,17 +2,22 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
-  folders: defineTable({
+  items: defineTable({
     userId: v.string(),
-    name: v.string(),
-    parentId: v.optional(v.id("folders")),
-    color: v.optional(v.string()),
+    type: v.union(v.literal("folder"), v.literal("note")),
+    title: v.string(),
+    parentId: v.optional(v.id("items")),
+    content: v.optional(v.any()),
+    imageStorageIds: v.optional(v.array(v.id("_storage"))),
+    tagIds: v.optional(v.array(v.id("tags"))),
+    order: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_userId", ["userId"])
+    .index("by_userId_type", ["userId", "type"])
     .index("by_userId_parentId", ["userId", "parentId"])
-    .index("by_userId_name", ["userId", "name"]),
+    .index("by_userId_updatedAt", ["userId", "updatedAt"]),
 
   tags: defineTable({
     userId: v.string(),
@@ -22,18 +27,4 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_userId_name", ["userId", "name"]),
-
-  notes: defineTable({
-    userId: v.string(),
-    title: v.string(),
-    content: v.optional(v.any()),
-    imageStorageIds: v.optional(v.array(v.id("_storage"))),
-    folderId: v.optional(v.id("folders")),
-    tagIds: v.optional(v.array(v.id("tags"))),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_userId", ["userId"])
-    .index("by_userId_updatedAt", ["userId", "updatedAt"])
-    .index("by_userId_folderId", ["userId", "folderId"]),
 });

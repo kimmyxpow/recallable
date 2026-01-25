@@ -4,7 +4,7 @@ import type { ParentZoneDropTarget } from "./types";
 import type { Id } from "../../../../convex/_generated/dataModel";
 
 type ParentDropZoneProps = {
-  targetFolderId?: Id<"folders">;
+  targetParentId?: Id<"items">;
   isVisible: boolean;
   isDragging: boolean;
   currentFolderName?: string;
@@ -12,7 +12,7 @@ type ParentDropZoneProps = {
 };
 
 export function ParentDropZone({
-  targetFolderId,
+  targetParentId,
   isVisible,
   isDragging,
   currentFolderName,
@@ -20,7 +20,7 @@ export function ParentDropZone({
 }: ParentDropZoneProps) {
   const data: ParentZoneDropTarget = {
     type: "parent-zone",
-    targetFolderId,
+    targetParentId,
   };
 
   const { isOver, setNodeRef } = useDroppable({
