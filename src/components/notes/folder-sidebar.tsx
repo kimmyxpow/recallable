@@ -8,7 +8,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -31,23 +30,22 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  IconPlus,
-  IconTrash,
-  IconLogout,
-  IconFileText,
-  IconDots,
-  IconFolder,
-  IconFolderPlus,
-  IconChevronLeft,
-  IconPencil,
-  IconNotes,
-  IconSparkles2,
-} from "@tabler/icons-react";
+import { IconPlus } from "@tabler/icons-react";
 import { Spinner } from "@/components/ui/spinner";
 import { authClient } from "@/integrations/better-auth/auth-client";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "motion/react";
+import IconFolder2BoldDuotone from "~icons/solar/folder-2-bold-duotone";
+import IconDocumentBoldDuotone from "~icons/solar/document-bold-duotone";
+import IconStarsBoldDuotone from "~icons/solar/stars-bold-duotone";
+import IconDocumentAddBoldDuotone from "~icons/solar/document-add-bold-duotone";
+import IconAddFolderBoldDuotone from "~icons/solar/add-folder-bold-duotone";
+import IconTrashBinTrashBoldDuotone from "~icons/solar/trash-bin-trash-bold-duotone";
+import IconPenBoldDuotone from "~icons/solar/pen-bold-duotone";
+import IconAltArrowLeftLineDuotone from "~icons/solar/alt-arrow-left-line-duotone";
+import IconLogout2BoldDuotone from "~icons/solar/logout-2-bold-duotone";
+import IconMenuDotsBoldDuotone from "~icons/solar/menu-dots-bold-duotone";
+import IconSadCircleBoldDuotone from "~icons/solar/sad-circle-bold-duotone";
 
 export function FolderSidebar({
   currentFolderId,
@@ -220,7 +218,7 @@ export function FolderSidebar({
                   transition={springTransition}
                 >
                   <Button variant="ghost" size="icon" onClick={handleGoBack}>
-                    <IconChevronLeft />
+                    <IconAltArrowLeftLineDuotone className="text-foreground/60" />
                   </Button>
                 </motion.div>
               ) : (
@@ -231,7 +229,7 @@ export function FolderSidebar({
                   exit={{ opacity: 0, scale: 0.8 }}
                   transition={springTransition}
                 >
-                  <IconSparkles2 className="text-muted-foreground size-5 ml-3" />
+                  <IconStarsBoldDuotone className="text-primary size-5 ml-3" />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -266,7 +264,11 @@ export function FolderSidebar({
                   onClick={handleCreateNote}
                   disabled={isCreatingNote}
                 >
-                  {isCreatingNote ? <Spinner /> : <IconFileText />}
+                  {isCreatingNote ? (
+                    <Spinner />
+                  ) : (
+                    <IconDocumentAddBoldDuotone className="text-foreground/60" />
+                  )}
                   New Note
                 </DropdownMenuItem>
                 <DropdownMenuItem
@@ -276,7 +278,11 @@ export function FolderSidebar({
                   }}
                   disabled={isCreatingFolder}
                 >
-                  {isCreatingFolder ? <Spinner /> : <IconFolderPlus />}
+                  {isCreatingFolder ? (
+                    <Spinner />
+                  ) : (
+                    <IconAddFolderBoldDuotone className="text-foreground/60" />
+                  )}
                   New Folder
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -298,7 +304,7 @@ export function FolderSidebar({
                   variant="destructive"
                   onClick={() => setShowLogoutDialog(true)}
                 >
-                  <IconLogout />
+                  <IconLogout2BoldDuotone className="text-foreground/60" />
                   Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -320,7 +326,7 @@ export function FolderSidebar({
             >
               {folders.length === 0 && notes.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                  <IconNotes className="size-10 text-muted-foreground/50 mb-2" />
+                  <IconSadCircleBoldDuotone className="size-10 text-muted-foreground/50 mb-2" />
                   <p className="text-sm text-muted-foreground">No notes yet</p>
                   <p className="text-xs text-muted-foreground/70">
                     Create a note or folder
@@ -340,7 +346,7 @@ export function FolderSidebar({
                       className="group flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent/30 cursor-pointer"
                       onClick={() => handleNavigateIntoFolder(folder._id)}
                     >
-                      <IconFolder className="size-4 shrink-0" />
+                      <IconFolder2BoldDuotone className="size-4 text-foreground/60 shrink-0" />
                       <span className="text-sm truncate flex-1">
                         {folder.name}
                       </span>
@@ -353,7 +359,7 @@ export function FolderSidebar({
                               className="opacity-0 group-hover:opacity-100"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <IconDots />
+                              <IconMenuDotsBoldDuotone className="text-foreground/60" />
                             </Button>
                           }
                         />
@@ -364,10 +370,9 @@ export function FolderSidebar({
                               openRenameDialog(folder);
                             }}
                           >
-                            <IconPencil />
+                            <IconPenBoldDuotone className="text-foreground/60" />
                             Rename
                           </DropdownMenuItem>
-                          <DropdownMenuSeparator />
                           <DropdownMenuItem
                             variant="destructive"
                             onClick={(e) => {
@@ -375,7 +380,7 @@ export function FolderSidebar({
                               setFolderToDelete(folder);
                             }}
                           >
-                            <IconTrash />
+                            <IconTrashBinTrashBoldDuotone className="text-foreground/60" />
                             Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -400,7 +405,7 @@ export function FolderSidebar({
                       )}
                       onClick={() => onSelectNote(note._id)}
                     >
-                      <IconFileText className="size-4 shrink-0" />
+                      <IconDocumentBoldDuotone className="size-4 text-foreground/60 shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm truncate text-inherit">
                           {note.title}
@@ -415,7 +420,7 @@ export function FolderSidebar({
                               className="opacity-0 group-hover:opacity-100 size-6"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <IconDots className="size-3.5" />
+                              <IconMenuDotsBoldDuotone className="text-foreground/60" />
                             </Button>
                           }
                         />
@@ -427,7 +432,7 @@ export function FolderSidebar({
                               setNoteToDelete(note);
                             }}
                           >
-                            <IconTrash />
+                            <IconTrashBinTrashBoldDuotone className="text-foreground/60" />
                             Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>

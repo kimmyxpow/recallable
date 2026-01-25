@@ -20,7 +20,11 @@ import { Spinner } from "@/components/ui/spinner";
 import { useRef, useEffect, useState } from "react";
 import { useAtom } from "jotai";
 import { lastOpenedNoteAtom, lastFolderAtom } from "@/lib/atoms";
-import { NoteEditor, type SaveStatus, type TiptapContent } from "@/components/notes/note-editor";
+import {
+  NoteEditor,
+  type SaveStatus,
+  type TiptapContent,
+} from "@/components/notes/note-editor";
 import { FolderSidebar } from "@/components/notes/folder-sidebar";
 import { formatDistanceToNow } from "date-fns";
 
@@ -126,7 +130,7 @@ function NoteEditorPanel({
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden m-6">
+    <div className="flex-1 flex flex-col m-6">
       <header className="flex items-center bg-white justify-between h-11 rounded-lg px-4 shrink-0">
         <div className="flex items-center gap-3 min-w-0">
           <span className="font-medium text-sm truncate">{note.title}</span>
