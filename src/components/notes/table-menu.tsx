@@ -1,16 +1,6 @@
 import { useState } from "react";
 import type { Editor } from "@tiptap/react";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -21,18 +11,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  IconTable,
-  IconRowInsertTop,
-  IconRowInsertBottom,
-  IconColumnInsertLeft,
-  IconColumnInsertRight,
-  IconRowRemove,
-  IconColumnRemove,
-  IconTableOff,
-  IconLayoutBoardSplit,
-  IconArrowMergeAltLeft,
-} from "@tabler/icons-react";
+import { IconTable } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 
 interface TableInsertGridProps {
@@ -123,132 +102,5 @@ export function TableInsertButton({ editor }: TableMenuProps) {
         />
       </PopoverContent>
     </Popover>
-  );
-}
-
-export function TableContextMenu({ editor }: TableMenuProps) {
-  const isInTable = editor.isActive("table");
-
-  if (!isInTable) return null;
-
-  return (
-    <DropdownMenu>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <DropdownMenuTrigger
-              render={
-                <Toggle
-                  size="sm"
-                  pressed={isInTable}
-                  aria-label="Table Options"
-                />
-              }
-            >
-              <IconTable className="size-4" />
-            </DropdownMenuTrigger>
-          }
-        />
-        <TooltipContent>Table Options</TooltipContent>
-      </Tooltip>
-      <DropdownMenuContent align="start" className="w-52">
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <IconRowInsertTop className="size-4" />
-            Add Row
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>
-            <DropdownMenuItem
-              onClick={() => editor.chain().focus().addRowBefore().run()}
-            >
-              <IconRowInsertTop className="size-4" />
-              Insert Above
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => editor.chain().focus().addRowAfter().run()}
-            >
-              <IconRowInsertBottom className="size-4" />
-              Insert Below
-            </DropdownMenuItem>
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <IconColumnInsertLeft className="size-4" />
-            Add Column
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>
-            <DropdownMenuItem
-              onClick={() => editor.chain().focus().addColumnBefore().run()}
-            >
-              <IconColumnInsertLeft className="size-4" />
-              Insert Left
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => editor.chain().focus().addColumnAfter().run()}
-            >
-              <IconColumnInsertRight className="size-4" />
-              Insert Right
-            </DropdownMenuItem>
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-
-        <DropdownMenuSeparator />
-
-        <DropdownMenuItem
-          onClick={() => editor.chain().focus().deleteRow().run()}
-        >
-          <IconRowRemove className="size-4" />
-          Delete Row
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => editor.chain().focus().deleteColumn().run()}
-        >
-          <IconColumnRemove className="size-4" />
-          Delete Column
-        </DropdownMenuItem>
-
-        <DropdownMenuSeparator />
-
-        <DropdownMenuItem
-          onClick={() => editor.chain().focus().mergeCells().run()}
-          disabled={!editor.can().mergeCells()}
-        >
-          <IconArrowMergeAltLeft className="size-4" />
-          Merge Cells
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => editor.chain().focus().splitCell().run()}
-          disabled={!editor.can().splitCell()}
-        >
-          <IconLayoutBoardSplit className="size-4" />
-          Split Cell
-        </DropdownMenuItem>
-
-        <DropdownMenuSeparator />
-
-        <DropdownMenuItem
-          onClick={() => editor.chain().focus().toggleHeaderRow().run()}
-        >
-          Toggle Header Row
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => editor.chain().focus().toggleHeaderColumn().run()}
-        >
-          Toggle Header Column
-        </DropdownMenuItem>
-
-        <DropdownMenuSeparator />
-
-        <DropdownMenuItem
-          onClick={() => editor.chain().focus().deleteTable().run()}
-          variant="destructive"
-        >
-          <IconTableOff className="size-4" />
-          Delete Table
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }

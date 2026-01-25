@@ -9,12 +9,12 @@ import Image from "@tiptap/extension-image";
 import Audio from "@tiptap/extension-audio";
 import Dropcursor from "@tiptap/extension-dropcursor";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
-import { Table } from "@tiptap/extension-table";
 import { TableRow } from "@tiptap/extension-table-row";
 import { TableHeader } from "@tiptap/extension-table-header";
 import { TableCell } from "@tiptap/extension-table-cell";
 import { all, createLowlight } from "lowlight";
-import { TableInsertButton, TableContextMenu } from "./table-menu";
+import { TableInsertButton } from "./table-menu";
+import { TableWithMenu } from "./table-extension";
 import { Toggle } from "@/components/ui/toggle";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -147,7 +147,7 @@ export function NoteEditor({
       StarterKit.configure({ codeBlock: false }),
       CodeBlockLowlight.configure({ lowlight }),
       Dropcursor,
-      Table.configure({
+      TableWithMenu.configure({
         resizable: true,
         handleWidth: 5,
         cellMinWidth: 80,
@@ -341,7 +341,6 @@ export function NoteEditor({
         isOrderedList: ctx.editor.isActive("orderedList"),
         isBlockquote: ctx.editor.isActive("blockquote"),
         isCodeBlock: ctx.editor.isActive("codeBlock"),
-        isTable: ctx.editor.isActive("table"),
       };
     },
     equalityFn: (prev, next) => {
@@ -357,8 +356,7 @@ export function NoteEditor({
         prev.isBulletList === next.isBulletList &&
         prev.isOrderedList === next.isOrderedList &&
         prev.isBlockquote === next.isBlockquote &&
-        prev.isCodeBlock === next.isCodeBlock &&
-        prev.isTable === next.isTable
+        prev.isCodeBlock === next.isCodeBlock
       );
     },
   });
@@ -489,8 +487,6 @@ export function NoteEditor({
         >
           <IconClearFormatting className="size-4" />
         </ToolbarButton>
-
-        {editorState?.isTable && <TableContextMenu editor={editor} />}
       </BubbleMenu>
 
       <FloatingMenu
