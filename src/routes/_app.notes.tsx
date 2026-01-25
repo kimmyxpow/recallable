@@ -17,9 +17,7 @@ import {
   IconAlertCircle,
 } from "@tabler/icons-react";
 import { Spinner } from "@/components/ui/spinner";
-import { useRef, useEffect, useState } from "react";
-import { useAtom } from "jotai";
-import { lastOpenedNoteAtom, lastFolderAtom } from "@/lib/atoms";
+import { useState } from "react";
 import {
   NoteEditor,
   type SaveStatus,
@@ -176,36 +174,7 @@ function NotesPage() {
   const { folderId, noteId } = Route.useSearch();
   const navigate = Route.useNavigate();
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
-  const [lastOpenedNote, setLastOpenedNote] = useAtom(lastOpenedNoteAtom);
-  const [lastFolder, setLastFolder] = useAtom(lastFolderAtom);
-  const initializedRef = useRef(false);
-
-  useEffect(() => {
-    if (!initializedRef.current) {
-      initializedRef.current = true;
-      if (!noteId && !folderId && (lastOpenedNote || lastFolder)) {
-        navigate({
-          search: {
-            folderId: lastFolder || undefined,
-            noteId: lastOpenedNote || undefined,
-          },
-          replace: true,
-        });
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    if (noteId) {
-      setLastOpenedNote(noteId);
-    }
-  }, [noteId, setLastOpenedNote]);
-
-  useEffect(() => {
-    setLastFolder(folderId || null);
-  }, [folderId, setLastFolder]);
-
-  const activeNoteId = noteId || lastOpenedNote;
+  const activeNoteId = noteId;
 
   const handleSelectNote = (newNoteId: Id<"notes">) => {
     navigate({
