@@ -28,6 +28,11 @@ interface DocumentTree {
   structure: string;
 }
 
+interface FolderTree {
+  tree: string;
+  emptyFolderIds: Array<Id<"items">>;
+}
+
 const searchNotes = createTool<{ query: string }, string, NoteToolCtx>({
   description:
     "Search through the user's notes to find relevant content. Use this when the user asks about their notes, wants to find something, or asks what tasks they should work on.",
@@ -41,7 +46,7 @@ const searchNotes = createTool<{ query: string }, string, NoteToolCtx>({
 
     const results: SearchResult[] = await ctx.runQuery(
       internal.documentIndex.internalSearchDocumentIndex,
-      { userId: ctx.userId, query: args.query, limit: 5 }
+      { userId: ctx.userId, query: args.query, limit: 10 }
     );
 
     if (results.length === 0) {
@@ -109,7 +114,7 @@ const listRecentNotes = createTool<{ limit?: number }, string, NoteToolCtx>({
     const notes = items
       .filter((i: Doc<"items">) => i.type === "note")
       .sort((a: Doc<"items">, b: Doc<"items">) => b.updatedAt - a.updatedAt)
-      .slice(0, args.limit ?? 10);
+      .slice(0, args.limit ?? 20);
 
     if (notes.length === 0) {
       return "You don't have any notes yet.";
@@ -144,7 +149,7 @@ const getDocumentStructure = createTool<
 
     const trees: DocumentTree[] = await ctx.runQuery(
       internal.documentIndex.internalGetAllDocumentTrees,
-      { userId: ctx.userId, limit: args.limit ?? 20 }
+      { userId: ctx.userId, limit: args.limit ?? 50 }
     );
 
     if (trees.length === 0) {
@@ -157,6 +162,35 @@ const getDocumentStructure = createTool<
           `## ${t.title}\n[ID: ${t.itemId}]\n\`\`\`\n${t.structure}\n\`\`\``
       )
       .join("\n\n");
+  },
+});
+
+const getFolderTree = createTool<{}, string, NoteToolCtx>({
+  description:
+    "Get the user's folder and note hierarchy in a readable tree. Use this first when managing folders, moving items, or cleaning empty folders.",
+  args: z.object({}),
+  handler: async (ctx): Promise<string> => {
+    if (!ctx.userId) {
+      return "Error: User not authenticated.";
+    }
+
+    const tree: FolderTree = await ctx.runQuery(
+      internal.items.internalFolderTree,
+      {
+        userId: ctx.userId,
+      }
+    );
+
+    if (!tree.tree) {
+      return "No items found.";
+    }
+
+    const empties =
+      tree.emptyFolderIds.length > 0
+        ? `Empty folders: ${tree.emptyFolderIds.join(", ")}`
+        : "No empty folders.";
+
+    return `Folder Tree:\n\`\`\`\n${tree.tree}\n\`\`\`\n${empties}`;
   },
 });
 
@@ -297,14 +331,84 @@ const createFolder = createTool<
   },
 });
 
+const removeItem = createTool<
+  { itemId: string; recursive?: boolean },
+  string,
+  NoteToolCtx
+>({
+  description:
+    "Remove a folder or note by ID. For folders: use recursive=true to delete folder AND all its contents. Use recursive=false (default) to delete folder but move its contents to the parent folder. Always confirm with the user and inspect the folder tree first.",
+  args: z.object({
+    itemId: z.string().describe("The ID of the item to remove"),
+    recursive: z
+      .boolean()
+      .optional()
+      .describe(
+        "For folders only: true to delete folder and all contents recursively, false (default) to move contents to parent folder before deleting"
+      ),
+  }),
+  handler: async (ctx, args): Promise<string> => {
+    if (!ctx.userId) {
+      return "Error: User not authenticated.";
+    }
+
+    try {
+      await ctx.runMutation(internal.items.internalRemove, {
+        userId: ctx.userId,
+        itemId: args.itemId as Id<"items">,
+        recursive: args.recursive,
+      });
+      const action = args.recursive ? "Deleted (recursive)" : "Removed";
+      return `${action} item ${args.itemId}`;
+    } catch (error) {
+      return `Failed to remove item: ${error instanceof Error ? error.message : "Unknown error"}`;
+    }
+  },
+});
+
+const moveItem = createTool<
+  { itemId: string; parentId?: string },
+  string,
+  NoteToolCtx
+>({
+  description:
+    "Move an item into a folder. Use folder IDs from getFolderTree. Do not move without confirming target IDs with the user.",
+  args: z.object({
+    itemId: z.string().describe("The item to move"),
+    parentId: z
+      .string()
+      .optional()
+      .describe("Destination folder ID (omit to move to root)"),
+  }),
+  handler: async (ctx, args): Promise<string> => {
+    if (!ctx.userId) {
+      return "Error: User not authenticated.";
+    }
+
+    try {
+      await ctx.runMutation(internal.items.internalMove, {
+        userId: ctx.userId,
+        itemId: args.itemId as Id<"items">,
+        parentId: args.parentId as Id<"items"> | undefined,
+      });
+      return `Moved ${args.itemId} to ${args.parentId ?? "root"}`;
+    } catch (error) {
+      return `Failed to move item: ${error instanceof Error ? error.message : "Unknown error"}`;
+    }
+  },
+});
+
 export const noteTools = {
   searchNotes,
   getNote,
   listRecentNotes,
   getDocumentStructure,
+  getFolderTree,
   updateNote,
   createNote,
   createFolder,
+  moveItem,
+  removeItem,
 };
 
 function extractTextContent(content: unknown): string {
@@ -391,18 +495,41 @@ Your role is to help users:
 - Create new notes and folders with professional, well-formatted content
 - Rewrite and improve note content when asked
 
-When a user asks about their notes or tasks:
-1. First use getDocumentStructure or searchNotes to understand what notes exist
+## Managing Folders
+
+### Deleting Folders
+CRITICAL: When a user asks to "delete folder with contents" or "delete folder and everything inside", use removeItem with recursive=true.
+When a user says "delete folder but keep contents" or just "delete folder", use removeItem with recursive=false (default).
+
+Process for deleting folders:
+1. ALWAYS call getFolderTree first to see the full hierarchy
+2. Identify what's inside the folder (notes, subfolders)
+3. ASK the user to confirm if they want to delete contents too or move them
+4. Use recursive=true for "delete folder with contents"
+5. Use recursive=false for "delete folder but move contents"
+6. Show exactly what will be deleted before confirming
+
+Example:
+- User: "Delete folder X and everything in it" → recursive=true
+- User: "Delete folder X but keep the notes" → recursive=false (moves notes to parent)
+
+### Moving Items
+1. Use getFolderTree to see current structure
+2. Confirm source and destination IDs with user
+3. Use moveItem with the correct destination parentId
+
+## When a user asks about their notes or tasks:
+1. First use getFolderTree to see structure, then getDocumentStructure or searchNotes to understand what notes exist
 2. Use getNote to read the full content of relevant notes
 3. Provide clear, concise answers based on the note content
 
-When updating notes:
+## When updating notes:
 1. Always read the current content first using getNote
 2. Note the version number to prevent conflicts
 3. Apply changes professionally, maintaining consistent formatting
 4. Confirm success or report any conflicts
 
-When creating notes or folders:
+## When creating notes or folders:
 1. Use proper markdown formatting (# for h1, ## for h2, etc.)
 2. Keep content organized and professional
 3. Match the style and tone of the user's existing notes

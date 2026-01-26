@@ -9,9 +9,7 @@ export const list = query({
   returns: v.array(v.any()),
   handler: async (ctx) => {
     const user = await authComponent.getAuthUser(ctx);
-    if (!user) {
-      return [];
-    }
+    if (!user) return [];
 
     return await ctx.db
       .query("items")
@@ -83,14 +81,10 @@ export const get = query({
   returns: v.union(v.any(), v.null()),
   handler: async (ctx, args) => {
     const user = await authComponent.getAuthUser(ctx);
-    if (!user || !args.itemId) {
-      return null;
-    }
+    if (!user || !args.itemId) return null;
 
     const item = await ctx.db.get(args.itemId);
-    if (!item || item.userId !== user._id) {
-      return null;
-    }
+    if (!item || item.userId !== user._id) return null;
 
     return item;
   },
@@ -149,6 +143,19 @@ export const createFolder = mutation({
       });
     }
 
+    if (args.parentId) {
+      const parent = await ctx.db.get(args.parentId);
+      if (!parent || parent.userId !== user._id) {
+        throw new ConvexError({ code: "NOT_FOUND", message: "Parent not found" });
+      }
+      if (parent.type !== "folder") {
+        throw new ConvexError({
+          code: "INVALID_OPERATION",
+          message: "Parent must be a folder",
+        });
+      }
+    }
+
     const now = Date.now();
     return await ctx.db.insert("items", {
       userId: user._id,
@@ -175,6 +182,19 @@ export const createNote = mutation({
         code: "UNAUTHENTICATED",
         message: "Not authenticated",
       });
+    }
+
+    if (args.parentId) {
+      const parent = await ctx.db.get(args.parentId);
+      if (!parent || parent.userId !== user._id) {
+        throw new ConvexError({ code: "NOT_FOUND", message: "Parent not found" });
+      }
+      if (parent.type !== "folder") {
+        throw new ConvexError({
+          code: "INVALID_OPERATION",
+          message: "Parent must be a folder",
+        });
+      }
     }
 
     const now = Date.now();
@@ -251,6 +271,13 @@ export const updateContent = mutation({
       throw new ConvexError({
         code: "INVALID_OPERATION",
         message: "Cannot update content of a folder",
+      });
+    }
+
+    if (!args.content || typeof args.content !== "object") {
+      throw new ConvexError({
+        code: "INVALID_OPERATION",
+        message: "Content must be an object",
       });
     }
 
@@ -410,6 +437,10 @@ export const move = mutation({
           code: "INVALID_OPERATION",
           message: "Cannot move item into a note",
         });
+      }
+
+      if (item.parentId === targetParent._id) {
+        return null;
       }
 
       if (item.type === "folder") {
@@ -666,6 +697,66 @@ export const cleanupUnusedImages = internalMutation({
   },
 });
 
+function buildFolderTree(
+  items: Doc<"items">[]
+): { tree: string; emptyFolderIds: Array<Id<"items">> } {
+  const byParent = new Map<string | undefined, Doc<"items">[]>();
+  for (const item of items) {
+    const key = item.parentId ? item.parentId.toString() : undefined;
+    const bucket = byParent.get(key) ?? [];
+    bucket.push(item);
+    byParent.set(key, bucket);
+  }
+
+  const emptyFolderIds: Array<Id<"items">> = [];
+
+  const render = (parentId: Id<"items"> | undefined, depth: number): string => {
+    const children = byParent.get(parentId ? parentId.toString() : undefined) ?? [];
+    const sorted = children.sort((a, b) => {
+      if (a.type !== b.type) return a.type === "folder" ? -1 : 1;
+      return a.title.localeCompare(b.title);
+    });
+
+    return sorted
+      .map((child) => {
+        const prefix = "  ".repeat(depth);
+        const icon = child.type === "folder" ? "📁" : "📝";
+        const subtree = child.type === "folder" ? render(child._id, depth + 1) : "";
+        const childCount = byParent.get(child._id.toString())?.length ?? 0;
+        const isEmpty = child.type === "folder" && childCount === 0;
+        if (isEmpty) emptyFolderIds.push(child._id);
+        const line = `${prefix}${icon} ${child.title} [${child._id}]${isEmpty ? " (empty)" : ""}`;
+        return [line, subtree].filter(Boolean).join("\n");
+      })
+      .filter(Boolean)
+      .join("\n");
+  };
+
+  const tree = render(undefined, 0);
+
+  return { tree, emptyFolderIds };
+}
+
+export const folderTree = query({
+  args: {},
+  returns: v.object({
+    tree: v.string(),
+    emptyFolderIds: v.array(v.id("items")),
+  }),
+  handler: async (ctx) => {
+    const user = await authComponent.getAuthUser(ctx);
+    if (!user) return { tree: "", emptyFolderIds: [] };
+
+    const items = await ctx.db
+      .query("items")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .collect();
+
+    const { tree, emptyFolderIds } = buildFolderTree(items);
+    return { tree, emptyFolderIds };
+  },
+});
+
 export const internalList = internalQuery({
   args: { userId: v.string() },
   returns: v.array(v.any()),
@@ -674,6 +765,140 @@ export const internalList = internalQuery({
       .query("items")
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))
       .collect();
+  },
+});
+
+export const internalFolderTree = internalQuery({
+  args: { userId: v.string() },
+  returns: v.object({
+    tree: v.string(),
+    emptyFolderIds: v.array(v.id("items")),
+  }),
+  handler: async (ctx, args) => {
+    const items = await ctx.db
+      .query("items")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .collect();
+
+    const { tree, emptyFolderIds } = buildFolderTree(items);
+    return { tree, emptyFolderIds };
+  },
+});
+
+export const internalMove = internalMutation({
+  args: {
+    userId: v.string(),
+    itemId: v.id("items"),
+    parentId: v.optional(v.id("items")),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const item = await ctx.db.get(args.itemId);
+    if (!item || item.userId !== args.userId) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Item not found",
+      });
+    }
+
+    if (args.parentId === args.itemId) {
+      throw new ConvexError({
+        code: "INVALID_OPERATION",
+        message: "Cannot move item into itself",
+      });
+    }
+
+    if (args.parentId) {
+      const targetParent = await ctx.db.get(args.parentId);
+      if (!targetParent || targetParent.userId !== args.userId) {
+        throw new ConvexError({
+          code: "NOT_FOUND",
+          message: "Target folder not found",
+        });
+      }
+
+      if (targetParent.type !== "folder") {
+        throw new ConvexError({
+          code: "INVALID_OPERATION",
+          message: "Cannot move item into a note",
+        });
+      }
+
+      if (item.type === "folder") {
+        let currentId: Id<"items"> | undefined = args.parentId;
+        while (currentId) {
+          if (currentId === args.itemId) {
+            throw new ConvexError({
+              code: "INVALID_OPERATION",
+              message: "Cannot move folder into its own descendant",
+            });
+          }
+          const ancestor: Doc<"items"> | null = await ctx.db.get(currentId);
+          if (!ancestor || ancestor.userId !== args.userId) break;
+          currentId = ancestor.parentId;
+        }
+      }
+    }
+
+    await ctx.db.patch(args.itemId, {
+      parentId: args.parentId,
+      updatedAt: Date.now(),
+    });
+
+    return null;
+  },
+});
+
+export const internalRemove = internalMutation({
+  args: {
+    userId: v.string(),
+    itemId: v.id("items"),
+    recursive: v.optional(v.boolean()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const item = await ctx.db.get(args.itemId);
+    if (!item || item.userId !== args.userId) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Item not found",
+      });
+    }
+
+    if (item.type === "folder") {
+      const children = await ctx.db
+        .query("items")
+        .withIndex("by_userId_parentId", (q) =>
+          q.eq("userId", args.userId).eq("parentId", args.itemId)
+        )
+        .collect();
+
+      if (args.recursive === true) {
+        // Delete all children recursively
+        for (const child of children) {
+          await ctx.runMutation(internal.items.internalRemove, {
+            userId: args.userId,
+            itemId: child._id,
+            recursive: true,
+          });
+        }
+      } else {
+        // Move children to parent of deleted folder (preserve content)
+        for (const child of children) {
+          await ctx.db.patch(child._id, { parentId: item.parentId });
+        }
+      }
+    }
+
+    await ctx.db.delete(args.itemId);
+
+    if (item.type === "note" && item.imageStorageIds?.length) {
+      await ctx.scheduler.runAfter(0, internal.items.removeStorageFiles, {
+        storageIds: item.imageStorageIds,
+      });
+    }
+
+    return null;
   },
 });
 

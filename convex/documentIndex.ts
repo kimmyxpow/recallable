@@ -1,5 +1,10 @@
 import { v } from "convex/values";
-import { query, internalMutation, internalQuery } from "./_generated/server";
+import {
+  query,
+  internalMutation,
+  internalQuery,
+  type QueryCtx,
+} from "./_generated/server";
 import { authComponent } from "./auth";
 import type { Id } from "./_generated/dataModel";
 
@@ -17,6 +22,14 @@ type IndexNode = {
   path: string;
   parentPath?: string;
   position: number;
+};
+
+const NODE_WEIGHTS: Record<IndexNode["nodeType"], number> = {
+  title: 20,
+  heading: 10,
+  paragraph: 4,
+  list: 4,
+  codeBlock: 2,
 };
 
 function extractTextFromNode(node: TiptapNode): string {
@@ -109,6 +122,118 @@ function buildDocumentTree(
   }
 
   return nodes;
+}
+
+type SearchArgs = {
+  query: string;
+  limit: number;
+  userId: string;
+};
+
+type SearchResult = {
+  itemId: Id<"items">;
+  title: string;
+  matchedNodes: Array<{ nodeType: string; text: string; path: string }>;
+  score: number;
+};
+
+function scoreNode(
+  node: IndexNode,
+  queryLower: string,
+  terms: string[]
+): number {
+  const weight = NODE_WEIGHTS[node.nodeType] ?? 1;
+  let score = 0;
+
+  if (queryLower && node.text.toLowerCase().includes(queryLower)) {
+    score += weight * 3;
+  }
+
+  for (const term of terms) {
+    if (!term) continue;
+    const termWeight = term.length > 6 ? 2 : 1;
+    if (node.text.toLowerCase().includes(term)) {
+      score += weight * 2 * termWeight;
+    }
+    if (node.path.toLowerCase().includes(term)) {
+      score += weight * termWeight;
+    }
+  }
+
+  return score;
+}
+
+async function performSearch(
+  ctx: QueryCtx,
+  args: SearchArgs
+): Promise<SearchResult[]> {
+  const queryLower = args.query.trim().toLowerCase();
+  if (!queryLower) return [];
+
+  const terms = Array.from(
+    new Set(
+      queryLower
+        .split(/\s+/)
+        .map((t) => t.trim())
+        .filter((t) => t.length > 1)
+    )
+  );
+
+  const nodes = await ctx.db
+    .query("documentIndex")
+    .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+    .collect();
+
+  const itemMatches = new Map<
+    string,
+    {
+      itemId: Id<"items">;
+      matchedNodes: Array<{ nodeType: string; text: string; path: string }>;
+      score: number;
+    }
+  >();
+
+  for (const node of nodes) {
+    const nodeScore = scoreNode(node, queryLower, terms);
+    if (nodeScore <= 0) continue;
+
+    const key = node.itemId;
+    const existing = itemMatches.get(key);
+    const entry = existing ?? {
+      itemId: node.itemId,
+      matchedNodes: [],
+      score: 0,
+    };
+
+    if (entry.matchedNodes.length < 6) {
+      entry.matchedNodes.push({
+        nodeType: node.nodeType,
+        text: node.text,
+        path: node.path,
+      });
+    }
+
+    entry.score += nodeScore;
+    itemMatches.set(key, entry);
+  }
+
+  const sorted = Array.from(itemMatches.values()).sort(
+    (a, b) => b.score - a.score
+  );
+
+  const topResults = sorted.slice(0, args.limit);
+
+  const enriched = await Promise.all(
+    topResults.map(async (entry) => {
+      const item = await ctx.db.get(entry.itemId);
+      return {
+        ...entry,
+        title: item?.title ?? "Untitled",
+      };
+    })
+  );
+
+  return enriched;
 }
 
 export const rebuildIndex = internalMutation({
@@ -208,74 +333,12 @@ export const searchDocumentIndex = query({
     if (!user) return [];
 
     const limit = args.limit ?? 10;
-    const queryLower = args.query.toLowerCase();
-    const queryTerms = queryLower.split(/\s+/).filter((t) => t.length > 2);
 
-    const allNodes = await ctx.db
-      .query("documentIndex")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
-      .collect();
-
-    const itemMatches = new Map<
-      string,
-      {
-        itemId: Id<"items">;
-        matchedNodes: Array<{ nodeType: string; text: string; path: string }>;
-        score: number;
-      }
-    >();
-
-    for (const node of allNodes) {
-      const textLower = node.text.toLowerCase();
-      const pathLower = node.path.toLowerCase();
-      
-      let matchScore = 0;
-      for (const term of queryTerms) {
-        if (textLower.includes(term)) {
-          matchScore += node.nodeType === "title" ? 10 : node.nodeType === "heading" ? 5 : 1;
-        }
-        if (pathLower.includes(term)) {
-          matchScore += 2;
-        }
-      }
-
-      if (matchScore > 0) {
-        const key = node.itemId;
-        const existing = itemMatches.get(key);
-        if (existing) {
-          existing.matchedNodes.push({
-            nodeType: node.nodeType,
-            text: node.text,
-            path: node.path,
-          });
-          existing.score += matchScore;
-        } else {
-          itemMatches.set(key, {
-            itemId: node.itemId,
-            matchedNodes: [
-              { nodeType: node.nodeType, text: node.text, path: node.path },
-            ],
-            score: matchScore,
-          });
-        }
-      }
-    }
-
-    const results = Array.from(itemMatches.values())
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
-
-    const enriched = await Promise.all(
-      results.map(async (r) => {
-        const item = await ctx.db.get(r.itemId);
-        return {
-          ...r,
-          title: item?.title ?? "Untitled",
-        };
-      })
-    );
-
-    return enriched;
+    return await performSearch(ctx, {
+      query: args.query,
+      limit,
+      userId: user._id,
+    });
   },
 });
 
@@ -349,74 +412,12 @@ export const internalSearchDocumentIndex = internalQuery({
   ),
   handler: async (ctx, args) => {
     const limit = args.limit ?? 10;
-    const queryLower = args.query.toLowerCase();
-    const queryTerms = queryLower.split(/\s+/).filter((t) => t.length > 2);
 
-    const allNodes = await ctx.db
-      .query("documentIndex")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
-      .collect();
-
-    const itemMatches = new Map<
-      string,
-      {
-        itemId: Id<"items">;
-        matchedNodes: Array<{ nodeType: string; text: string; path: string }>;
-        score: number;
-      }
-    >();
-
-    for (const node of allNodes) {
-      const textLower = node.text.toLowerCase();
-      const pathLower = node.path.toLowerCase();
-      
-      let matchScore = 0;
-      for (const term of queryTerms) {
-        if (textLower.includes(term)) {
-          matchScore += node.nodeType === "title" ? 10 : node.nodeType === "heading" ? 5 : 1;
-        }
-        if (pathLower.includes(term)) {
-          matchScore += 2;
-        }
-      }
-
-      if (matchScore > 0) {
-        const key = node.itemId;
-        const existing = itemMatches.get(key);
-        if (existing) {
-          existing.matchedNodes.push({
-            nodeType: node.nodeType,
-            text: node.text,
-            path: node.path,
-          });
-          existing.score += matchScore;
-        } else {
-          itemMatches.set(key, {
-            itemId: node.itemId,
-            matchedNodes: [
-              { nodeType: node.nodeType, text: node.text, path: node.path },
-            ],
-            score: matchScore,
-          });
-        }
-      }
-    }
-
-    const results = Array.from(itemMatches.values())
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
-
-    const enriched = await Promise.all(
-      results.map(async (r) => {
-        const item = await ctx.db.get(r.itemId);
-        return {
-          ...r,
-          title: item?.title ?? "Untitled",
-        };
-      })
-    );
-
-    return enriched;
+    return await performSearch(ctx, {
+      query: args.query,
+      limit,
+      userId: args.userId,
+    });
   },
 });
 

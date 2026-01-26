@@ -52,42 +52,57 @@ function useAIContext() {
 
 const TOOL_TYPES = [
   "tool-searchNotes",
-  "tool-getNote", 
+  "tool-getNote",
   "tool-listRecentNotes",
   "tool-getDocumentStructure",
+  "tool-getFolderTree",
   "tool-updateNote",
   "tool-createNote",
   "tool-createFolder",
+  "tool-moveItem",
+  "tool-removeItem",
 ] as const;
 
-type ToolType = typeof TOOL_TYPES[number];
+type ToolType = (typeof TOOL_TYPES)[number];
 
 const TOOL_LABELS: Record<ToolType, string> = {
   "tool-searchNotes": "Searching notes...",
   "tool-getNote": "Reading note...",
   "tool-listRecentNotes": "Listing notes...",
   "tool-getDocumentStructure": "Analyzing structure...",
+  "tool-getFolderTree": "Loading folders...",
   "tool-updateNote": "Updating note...",
   "tool-createNote": "Creating note...",
   "tool-createFolder": "Creating folder...",
+  "tool-moveItem": "Moving item...",
+  "tool-removeItem": "Removing item...",
 };
 
-function ToolCallIndicator({ toolType, isComplete }: { toolType: ToolType; isComplete: boolean }) {
+function ToolCallIndicator({
+  toolType,
+  isComplete,
+}: {
+  toolType: ToolType;
+  isComplete: boolean;
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "flex items-center gap-1.5 text-xs rounded-lg px-2 py-1",
-        isComplete ? "text-muted-foreground/60 bg-muted/30" : "text-muted-foreground bg-muted/50"
+        "flex items-center gap-1.5 text-xs rounded-lg px-2 py-1 bg-muted"
       )}
     >
       {isComplete ? (
         <IconTool className="size-3" />
       ) : (
-        <IconTool className="size-3 animate-pulse" />
+        <IconLoader2 className="size-3 animate-spin" />
       )}
-      <span>{isComplete ? TOOL_LABELS[toolType].replace("...", "") : TOOL_LABELS[toolType]}</span>
+      <span>
+        {isComplete
+          ? TOOL_LABELS[toolType].replace("...", "")
+          : TOOL_LABELS[toolType]}
+      </span>
     </motion.div>
   );
 }
@@ -125,48 +140,125 @@ function TextBubble({ text, isUser }: { text: string; isUser: boolean }) {
           : "bg-muted rounded-tl-sm"
       )}
     >
-      <div className="whitespace-pre-wrap break-words">{renderContent(text)}</div>
+      <div className="whitespace-pre-wrap wrap-break-word">
+        {renderContent(text)}
+      </div>
     </div>
   );
 }
 
 function MessageBubble({ message }: { message: UIMessage }) {
   const isUser = message.role === "user";
-  const isStreaming = message.status === "streaming" || message.status === "pending";
+  const isStreaming =
+    message.status === "streaming" || message.status === "pending";
 
   const renderPart = (part: (typeof message.parts)[number], index: number) => {
     switch (part.type) {
       case "text": {
         if (!part.text?.trim()) return null;
-        return <TextBubble key={`text-${index}`} text={part.text} isUser={isUser} />;
+        return (
+          <TextBubble key={`text-${index}`} text={part.text} isUser={isUser} />
+        );
       }
       case "tool-searchNotes": {
         const isComplete = part.state === "output-available";
-        return <ToolCallIndicator key={part.toolCallId} toolType="tool-searchNotes" isComplete={isComplete} />;
+        return (
+          <ToolCallIndicator
+            key={part.toolCallId}
+            toolType="tool-searchNotes"
+            isComplete={isComplete}
+          />
+        );
       }
       case "tool-getNote": {
         const isComplete = part.state === "output-available";
-        return <ToolCallIndicator key={part.toolCallId} toolType="tool-getNote" isComplete={isComplete} />;
+        return (
+          <ToolCallIndicator
+            key={part.toolCallId}
+            toolType="tool-getNote"
+            isComplete={isComplete}
+          />
+        );
       }
       case "tool-listRecentNotes": {
         const isComplete = part.state === "output-available";
-        return <ToolCallIndicator key={part.toolCallId} toolType="tool-listRecentNotes" isComplete={isComplete} />;
+        return (
+          <ToolCallIndicator
+            key={part.toolCallId}
+            toolType="tool-listRecentNotes"
+            isComplete={isComplete}
+          />
+        );
       }
       case "tool-getDocumentStructure": {
         const isComplete = part.state === "output-available";
-        return <ToolCallIndicator key={part.toolCallId} toolType="tool-getDocumentStructure" isComplete={isComplete} />;
+        return (
+          <ToolCallIndicator
+            key={part.toolCallId}
+            toolType="tool-getDocumentStructure"
+            isComplete={isComplete}
+          />
+        );
+      }
+      case "tool-getFolderTree": {
+        const isComplete = part.state === "output-available";
+        return (
+          <ToolCallIndicator
+            key={part.toolCallId}
+            toolType="tool-getFolderTree"
+            isComplete={isComplete}
+          />
+        );
       }
       case "tool-updateNote": {
         const isComplete = part.state === "output-available";
-        return <ToolCallIndicator key={part.toolCallId} toolType="tool-updateNote" isComplete={isComplete} />;
+        return (
+          <ToolCallIndicator
+            key={part.toolCallId}
+            toolType="tool-updateNote"
+            isComplete={isComplete}
+          />
+        );
       }
       case "tool-createNote": {
         const isComplete = part.state === "output-available";
-        return <ToolCallIndicator key={part.toolCallId} toolType="tool-createNote" isComplete={isComplete} />;
+        return (
+          <ToolCallIndicator
+            key={part.toolCallId}
+            toolType="tool-createNote"
+            isComplete={isComplete}
+          />
+        );
       }
       case "tool-createFolder": {
         const isComplete = part.state === "output-available";
-        return <ToolCallIndicator key={part.toolCallId} toolType="tool-createFolder" isComplete={isComplete} />;
+        return (
+          <ToolCallIndicator
+            key={part.toolCallId}
+            toolType="tool-createFolder"
+            isComplete={isComplete}
+          />
+        );
+      }
+      case "tool-moveItem": {
+        const isComplete = part.state === "output-available";
+        return (
+          <ToolCallIndicator
+            key={part.toolCallId}
+            toolType="tool-moveItem"
+            isComplete={isComplete}
+          />
+        );
+      }
+      case "tool-removeItem": {
+        const isComplete = part.state === "output-available";
+        return (
+          <ToolCallIndicator
+            key={part.toolCallId}
+            toolType="tool-removeItem"
+            isComplete={isComplete}
+          />
+        );
       }
       default:
         return null;
@@ -184,7 +276,7 @@ function MessageBubble({ message }: { message: UIMessage }) {
       animate={{ opacity: 1, y: 0 }}
       className={cn("flex gap-2", isUser ? "flex-row-reverse" : "flex-row")}
     >
-      <div className={cn("max-w-[80%] space-y-1.5", isUser ? "text-right" : "text-left")}>
+      <div className={cn("max-w-[80%] space-y-1.5")}>
         {hasParts && message.parts.map((part, i) => renderPart(part, i))}
         {isStreaming && !hasVisibleContent && (
           <div className="inline-block rounded-2xl px-3 py-2 text-sm bg-muted rounded-tl-sm">
@@ -212,7 +304,7 @@ function AIInput() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const inputContainerRef = useRef<HTMLDivElement>(null);
-  const historyPopupRef = useRef<HTMLDivElement>(null);
+  const historyContainerRef = useRef<HTMLDivElement>(null);
   const { setIsWorking } = useAIContext();
 
   const createThread = useConvexMutation(api.chat.createAgentThread);
@@ -258,12 +350,29 @@ function AIInput() {
     }
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      const insideInput = target && inputContainerRef.current?.contains(target);
+      const insideHistory =
+        target && historyContainerRef.current?.contains(target);
+      if (!insideInput && !insideHistory) {
+        setIsFocused(false);
+      }
+    };
+
+    document.addEventListener("click", handleClickOutside, { capture: true });
+    return () =>
+      document.removeEventListener("click", handleClickOutside, { capture: true });
+  }, []);
+
   const handleClear = async () => {
-    setThreadId(null);
+    const newThreadId = await createThread({}).catch(console.error);
+    setThreadId(newThreadId ?? null);
   };
 
   const handleSend = useCallback(async () => {
-    if (!value.trim() || !threadId || isSending) return;
+    if (!value.trim() || !threadId || isSending || isAgentStreaming) return;
 
     const message = value.trim();
     setValue("");
@@ -289,24 +398,18 @@ function AIInput() {
     [handleSend]
   );
 
-  const handleBlur = useCallback((e: React.FocusEvent) => {
-    const relatedTarget = e.relatedTarget as Node | null;
-    const isClickInsideHistory = historyPopupRef.current?.contains(relatedTarget);
-    const isClickInsideInput = inputContainerRef.current?.contains(relatedTarget);
-    
-    if (!isClickInsideHistory && !isClickInsideInput) {
-      setIsFocused(false);
-    }
-  }, []);
-
   const showHistory = isFocused && hasMessages;
   const popupBottom = inputHeight + 24 + 16;
+  const inputWidth = isAgentStreaming ? 420 : isFocused ? 600 : 400;
+  const inputPadding = isAgentStreaming ? "p-2.5" : "p-3";
+  const inputGap = isAgentStreaming ? "gap-2" : "gap-3";
 
   return (
     <>
       <AnimatePresence>
         {showHistory && (
           <motion.div
+            ref={historyContainerRef}
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -367,14 +470,16 @@ function AIInput() {
         <motion.div
           layout
           initial={false}
-          animate={{ width: isFocused ? 600 : 400 }}
+          animate={{ width: inputWidth }}
           transition={{ type: "spring", stiffness: 400, damping: 30 }}
           className={cn(
-            "rounded-2xl border border-border bg-white p-3 shadow-xl shadow-black/10",
-            isFocused && "border-primary"
+            "rounded-2xl border border-border bg-white shadow-xl shadow-black/10",
+            inputPadding,
+            isFocused && "border-primary",
+            isAgentStreaming && "opacity-80"
           )}
         >
-          <div className="flex flex-col gap-3">
+          <div className={cn("flex flex-col", inputGap)}>
             <TextareaAutosize
               ref={inputRef}
               value={value}
@@ -383,19 +488,19 @@ function AIInput() {
               onBlur={() => setTimeout(() => setIsFocused(false), 150)}
               onKeyDown={handleKeyDown}
               placeholder="Ask AI to help you write..."
-              disabled={isSending || !threadId}
-              minRows={isFocused ? 3 : 1}
+              disabled={!threadId}
+              minRows={isAgentStreaming ? 1 : isFocused ? 3 : 1}
               maxRows={8}
               className="resize-none bg-transparent text-sm leading-relaxed outline-none placeholder:text-muted-foreground disabled:opacity-50"
               style={{ transition: "min-height 0.2s ease-out" }}
             />
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                {isAgentStreaming && (
+                {isAgentStreaming && !showHistory && (
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="flex items-center gap-1.5 text-xs text-muted-foreground"
+                    className="flex items-center gap-1 text-xs text-muted-foreground"
                   >
                     <motion.div
                       animate={{ rotate: 360 }}
@@ -405,15 +510,17 @@ function AIInput() {
                         ease: "linear",
                       }}
                     >
-                      <IconLoader2 className="size-3.5" />
+                      <IconLoader2 className="size-3" />
                     </motion.div>
-                    <span>AI is thinking...</span>
+                    <span>AI is responding...</span>
                   </motion.div>
                 )}
               </div>
               <Button
                 onClick={handleSend}
-                disabled={!value.trim() || isSending || !threadId}
+                disabled={
+                  !value.trim() || isSending || isAgentStreaming || !threadId
+                }
               >
                 {isSending ? (
                   <Spinner className="size-4" />
