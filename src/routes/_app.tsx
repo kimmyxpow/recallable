@@ -1,13 +1,26 @@
 import { createFileRoute, redirect, Outlet } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { IconSend, IconSparkles, IconX, IconLoader2, IconTool } from "@tabler/icons-react";
-import { useState, useRef, useEffect, useCallback, createContext, useContext } from "react";
+import {
+  IconSend,
+  IconSparkles,
+  IconLoader2,
+  IconTool,
+  IconRefresh,
+} from "@tabler/icons-react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  createContext,
+  useContext,
+} from "react";
 import { motion, AnimatePresence } from "motion/react";
 import TextareaAutosize from "react-textarea-autosize";
 import { cn } from "@/lib/utils";
 import { useConvexMutation } from "@convex-dev/react-query";
 import { api } from "../../convex/_generated/api";
-import { useUIMessages, useSmoothText } from "@convex-dev/agent/react";
+import { useUIMessages } from "@convex-dev/agent/react";
 import type { UIMessage } from "@convex-dev/agent/react";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -28,61 +41,62 @@ type AIContextType = {
   setIsWorking: (v: boolean) => void;
 };
 
-const AIContext = createContext<AIContextType>({ isWorking: false, setIsWorking: () => {} });
+const AIContext = createContext<AIContextType>({
+  isWorking: false,
+  setIsWorking: () => {},
+});
 
 function useAIContext() {
   return useContext(AIContext);
 }
 
-const TOOL_LABELS: Record<string, string> = {
-  searchNotes: "Searching notes...",
-  getNote: "Reading note...",
-  listRecentNotes: "Listing notes...",
-  getDocumentStructure: "Analyzing structure...",
-  updateNote: "Updating note...",
-  createNote: "Creating note...",
-  createFolder: "Creating folder...",
+const TOOL_TYPES = [
+  "tool-searchNotes",
+  "tool-getNote", 
+  "tool-listRecentNotes",
+  "tool-getDocumentStructure",
+  "tool-updateNote",
+  "tool-createNote",
+  "tool-createFolder",
+] as const;
+
+type ToolType = typeof TOOL_TYPES[number];
+
+const TOOL_LABELS: Record<ToolType, string> = {
+  "tool-searchNotes": "Searching notes...",
+  "tool-getNote": "Reading note...",
+  "tool-listRecentNotes": "Listing notes...",
+  "tool-getDocumentStructure": "Analyzing structure...",
+  "tool-updateNote": "Updating note...",
+  "tool-createNote": "Creating note...",
+  "tool-createFolder": "Creating folder...",
 };
 
-function ToolCallIndicator({ toolName }: { toolName: string }) {
+function ToolCallIndicator({ toolType, isComplete }: { toolType: ToolType; isComplete: boolean }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 rounded-lg px-2 py-1"
+      className={cn(
+        "flex items-center gap-1.5 text-xs rounded-lg px-2 py-1",
+        isComplete ? "text-muted-foreground/60 bg-muted/30" : "text-muted-foreground bg-muted/50"
+      )}
     >
-      <IconTool className="size-3" />
-      <span>{TOOL_LABELS[toolName] ?? `Running ${toolName}...`}</span>
+      {isComplete ? (
+        <IconTool className="size-3" />
+      ) : (
+        <IconTool className="size-3 animate-pulse" />
+      )}
+      <span>{isComplete ? TOOL_LABELS[toolType].replace("...", "") : TOOL_LABELS[toolType]}</span>
     </motion.div>
   );
 }
 
-function MessageBubble({ message }: { message: UIMessage }) {
-  const isUser = message.role === "user";
-  const isStreaming = message.status === "streaming" || message.status === "pending";
-  const [visibleText] = useSmoothText(message.text ?? "", {
-    startStreaming: isStreaming,
-  });
-
-  const toolCalls = (message.parts ?? []).filter(
-    (part) => typeof part.type === "string" && part.type.startsWith("tool-")
-  );
-  const pendingTools = toolCalls.filter(
-    (t) => "state" in t && t.state !== "done" && t.state !== "output-available"
-  );
-
-  const getToolName = (part: unknown): string => {
-    if (part && typeof part === "object" && "type" in part) {
-      const type = (part as { type: string }).type;
-      return type.replace("tool-", "");
-    }
-    return "unknown";
-  };
-
-  const renderContent = (text: string) => {
+function TextBubble({ text, isUser }: { text: string; isUser: boolean }) {
+  const renderContent = (content: string) => {
     const linkRegex = /(https?:\/\/[^\s]+|\/notes\?[^\s]+)/g;
-    const parts = text.split(linkRegex);
-    
+    const parts = content.split(linkRegex);
+
     return parts.map((part, i) => {
       if (linkRegex.test(part)) {
         linkRegex.lastIndex = 0;
@@ -103,46 +117,85 @@ function MessageBubble({ message }: { message: UIMessage }) {
   };
 
   return (
+    <div
+      className={cn(
+        "inline-block rounded-2xl px-3 py-2 text-sm",
+        isUser
+          ? "bg-primary text-primary-foreground rounded-tr-sm"
+          : "bg-muted rounded-tl-sm"
+      )}
+    >
+      <div className="whitespace-pre-wrap break-words">{renderContent(text)}</div>
+    </div>
+  );
+}
+
+function MessageBubble({ message }: { message: UIMessage }) {
+  const isUser = message.role === "user";
+  const isStreaming = message.status === "streaming" || message.status === "pending";
+
+  const renderPart = (part: (typeof message.parts)[number], index: number) => {
+    switch (part.type) {
+      case "text": {
+        if (!part.text?.trim()) return null;
+        return <TextBubble key={`text-${index}`} text={part.text} isUser={isUser} />;
+      }
+      case "tool-searchNotes": {
+        const isComplete = part.state === "output-available";
+        return <ToolCallIndicator key={part.toolCallId} toolType="tool-searchNotes" isComplete={isComplete} />;
+      }
+      case "tool-getNote": {
+        const isComplete = part.state === "output-available";
+        return <ToolCallIndicator key={part.toolCallId} toolType="tool-getNote" isComplete={isComplete} />;
+      }
+      case "tool-listRecentNotes": {
+        const isComplete = part.state === "output-available";
+        return <ToolCallIndicator key={part.toolCallId} toolType="tool-listRecentNotes" isComplete={isComplete} />;
+      }
+      case "tool-getDocumentStructure": {
+        const isComplete = part.state === "output-available";
+        return <ToolCallIndicator key={part.toolCallId} toolType="tool-getDocumentStructure" isComplete={isComplete} />;
+      }
+      case "tool-updateNote": {
+        const isComplete = part.state === "output-available";
+        return <ToolCallIndicator key={part.toolCallId} toolType="tool-updateNote" isComplete={isComplete} />;
+      }
+      case "tool-createNote": {
+        const isComplete = part.state === "output-available";
+        return <ToolCallIndicator key={part.toolCallId} toolType="tool-createNote" isComplete={isComplete} />;
+      }
+      case "tool-createFolder": {
+        const isComplete = part.state === "output-available";
+        return <ToolCallIndicator key={part.toolCallId} toolType="tool-createFolder" isComplete={isComplete} />;
+      }
+      default:
+        return null;
+    }
+  };
+
+  const hasParts = message.parts && message.parts.length > 0;
+  const hasVisibleContent = message.parts?.some(
+    (p) => (p.type === "text" && p.text?.trim()) || p.type.startsWith("tool-")
+  );
+
+  return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn("flex gap-2", isUser ? "flex-row-reverse" : "flex-row")}
     >
-      <div
-        className={cn(
-          "flex size-6 shrink-0 items-center justify-center rounded-full text-xs",
-          isUser ? "bg-primary text-primary-foreground" : "bg-muted"
-        )}
-      >
-        {isUser ? "U" : <IconSparkles className="size-3" />}
-      </div>
-      <div className={cn("max-w-[80%] space-y-1", isUser ? "text-right" : "text-left")}>
-        {pendingTools.map((tool, i) => (
-          <ToolCallIndicator key={i} toolName={getToolName(tool)} />
-        ))}
-        {(visibleText || isStreaming) && (
-          <div
-            className={cn(
-              "inline-block rounded-2xl px-3 py-2 text-sm",
-              isUser
-                ? "bg-primary text-primary-foreground rounded-tr-sm"
-                : "bg-muted rounded-tl-sm"
-            )}
-          >
-            <div className="whitespace-pre-wrap break-words">
-              {visibleText ? (
-                renderContent(visibleText)
-              ) : isStreaming ? (
-                <span className="flex items-center gap-1.5 text-muted-foreground">
-                  <motion.span
-                    animate={{ opacity: [0.4, 1, 0.4] }}
-                    transition={{ repeat: Infinity, duration: 1.5 }}
-                  >
-                    Thinking...
-                  </motion.span>
-                </span>
-              ) : null}
-            </div>
+      <div className={cn("max-w-[80%] space-y-1.5", isUser ? "text-right" : "text-left")}>
+        {hasParts && message.parts.map((part, i) => renderPart(part, i))}
+        {isStreaming && !hasVisibleContent && (
+          <div className="inline-block rounded-2xl px-3 py-2 text-sm bg-muted rounded-tl-sm">
+            <span className="flex items-center gap-1.5 text-muted-foreground">
+              <motion.span
+                animate={{ opacity: [0.4, 1, 0.4] }}
+                transition={{ repeat: Infinity, duration: 1.5 }}
+              >
+                Thinking...
+              </motion.span>
+            </span>
           </div>
         )}
       </div>
@@ -151,13 +204,16 @@ function MessageBubble({ message }: { message: UIMessage }) {
 }
 
 function AIInput() {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const [value, setValue] = useState("");
   const [threadId, setThreadId] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [inputHeight, setInputHeight] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const { isWorking, setIsWorking } = useAIContext();
+  const inputContainerRef = useRef<HTMLDivElement>(null);
+  const historyPopupRef = useRef<HTMLDivElement>(null);
+  const { setIsWorking } = useAIContext();
 
   const createThread = useConvexMutation(api.chat.createAgentThread);
   const sendMessage = useConvexMutation(api.chat.sendMessage);
@@ -172,6 +228,8 @@ function AIInput() {
     (m) => m.status === "streaming" || m.status === "pending"
   );
 
+  const hasMessages = messages.length > 0;
+
   useEffect(() => {
     setIsWorking(isAgentStreaming);
   }, [isAgentStreaming, setIsWorking]);
@@ -183,35 +241,25 @@ function AIInput() {
   }, [messages]);
 
   useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isOpen]);
-
-  const handleOpen = async () => {
-    setIsOpen(true);
     if (!threadId) {
-      try {
-        const id = await createThread({});
-        setThreadId(id);
-      } catch (error) {
-        console.error("Failed to create thread:", error);
-      }
+      createThread({}).then(setThreadId).catch(console.error);
     }
-  };
+  }, [threadId, createThread]);
 
-  const handleClose = () => {
-    setIsOpen(false);
-  };
+  useEffect(() => {
+    if (inputContainerRef.current) {
+      const observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          setInputHeight(entry.contentRect.height);
+        }
+      });
+      observer.observe(inputContainerRef.current);
+      return () => observer.disconnect();
+    }
+  }, []);
 
   const handleClear = async () => {
     setThreadId(null);
-    try {
-      const id = await createThread({});
-      setThreadId(id);
-    } catch (error) {
-      console.error("Failed to create thread:", error);
-    }
   };
 
   const handleSend = useCallback(async () => {
@@ -241,64 +289,63 @@ function AIInput() {
     [handleSend]
   );
 
+  const handleBlur = useCallback((e: React.FocusEvent) => {
+    const relatedTarget = e.relatedTarget as Node | null;
+    const isClickInsideHistory = historyPopupRef.current?.contains(relatedTarget);
+    const isClickInsideInput = inputContainerRef.current?.contains(relatedTarget);
+    
+    if (!isClickInsideHistory && !isClickInsideInput) {
+      setIsFocused(false);
+    }
+  }, []);
+
+  const showHistory = isFocused && hasMessages;
+  const popupBottom = inputHeight + 24 + 16;
+
   return (
     <>
       <AnimatePresence>
-        {isOpen && (
+        {showHistory && (
           <motion.div
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ type: "spring", stiffness: 400, damping: 30 }}
-            className="fixed bottom-20 left-1/2 z-50 w-[460px] -translate-x-1/2 rounded-2xl border border-border bg-white shadow-xl shadow-black/10 overflow-hidden"
+            style={{ bottom: popupBottom }}
+            className="fixed left-1/2 z-40 w-150 -translate-x-1/2 rounded-2xl border border-border bg-white shadow-xl shadow-black/6 overflow-hidden"
           >
             <div className="flex items-center justify-between px-4 py-2.5 border-b">
               <div className="flex items-center gap-2">
                 <IconSparkles className="size-4 text-primary" />
-                <span className="text-sm font-medium">AI Assistant</span>
+                <span className="text-sm font-medium">Conversation</span>
                 {isAgentStreaming && (
                   <motion.div
                     animate={{ rotate: 360 }}
-                    transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                    transition={{
+                      repeat: Infinity,
+                      duration: 1,
+                      ease: "linear",
+                    }}
                   >
                     <IconLoader2 className="size-3.5 text-muted-foreground" />
                   </motion.div>
                 )}
               </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={handleClear}
-                  className="size-7"
-                >
-                  <IconX className="size-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={handleClose}
-                  className="size-7"
-                >
-                  <IconX className="size-4" />
-                </Button>
-              </div>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={handleClear}
+                className="size-7"
+                title="New conversation"
+              >
+                <IconRefresh className="size-3.5" />
+              </Button>
             </div>
 
-            <div className="h-72 overflow-y-auto px-4 py-3">
+            <div className="max-h-72 overflow-y-auto px-4 py-3">
               {status === "LoadingFirstPage" ? (
-                <div className="flex items-center justify-center h-full">
+                <div className="flex items-center justify-center h-20">
                   <Spinner className="size-5" />
-                </div>
-              ) : messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
-                  <IconSparkles className="size-8 text-muted-foreground/40" />
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">How can I help?</p>
-                    <p className="text-xs text-muted-foreground">
-                      Ask about your notes, tasks, or paste a note link.
-                    </p>
-                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col gap-3">
@@ -309,88 +356,74 @@ function AIInput() {
                 </div>
               )}
             </div>
-
-            <div className="border-t p-3">
-              <div className="flex gap-2">
-                <TextareaAutosize
-                  ref={inputRef}
-                  value={value}
-                  onChange={(e) => setValue(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Ask anything or paste a note link..."
-                  disabled={isSending || !threadId}
-                  minRows={1}
-                  maxRows={4}
-                  className="flex-1 resize-none rounded-lg border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring disabled:opacity-50"
-                />
-                <Button
-                  size="icon"
-                  onClick={handleSend}
-                  disabled={!value.trim() || isSending || !threadId}
-                >
-                  {isSending ? <Spinner className="size-4" /> : <IconSend className="size-4" />}
-                </Button>
-              </div>
-            </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2">
+      <div
+        ref={inputContainerRef}
+        className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2"
+      >
         <motion.div
           layout
-          animate={{ width: isOpen ? 300 : 400 }}
+          initial={false}
+          animate={{ width: isFocused ? 600 : 400 }}
           transition={{ type: "spring", stiffness: 400, damping: 30 }}
           className={cn(
             "rounded-2xl border border-border bg-white p-3 shadow-xl shadow-black/10",
-            isOpen && "border-primary"
+            isFocused && "border-primary"
           )}
         >
-          {isOpen ? (
-            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              {isAgentStreaming ? (
-                <>
+          <div className="flex flex-col gap-3">
+            <TextareaAutosize
+              ref={inputRef}
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setTimeout(() => setIsFocused(false), 150)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask AI to help you write..."
+              disabled={isSending || !threadId}
+              minRows={isFocused ? 3 : 1}
+              maxRows={8}
+              className="resize-none bg-transparent text-sm leading-relaxed outline-none placeholder:text-muted-foreground disabled:opacity-50"
+              style={{ transition: "min-height 0.2s ease-out" }}
+            />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {isAgentStreaming && (
                   <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground"
                   >
-                    <IconLoader2 className="size-4" />
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{
+                        repeat: Infinity,
+                        duration: 1,
+                        ease: "linear",
+                      }}
+                    >
+                      <IconLoader2 className="size-3.5" />
+                    </motion.div>
+                    <span>AI is thinking...</span>
                   </motion.div>
-                  <span>AI is working...</span>
-                </>
-              ) : (
-                <>
-                  <IconSparkles className="size-4" />
-                  <span>Chat open above</span>
-                </>
-              )}
-            </div>
-          ) : (
-            <div
-              className="flex items-center gap-3 cursor-text"
-              onClick={handleOpen}
-            >
-              <div className="flex items-center gap-2 flex-1">
-                {isWorking ? (
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                  >
-                    <IconLoader2 className="size-5 text-primary" />
-                  </motion.div>
-                ) : (
-                  <IconSparkles className="size-5 text-muted-foreground" />
                 )}
-                <span className="text-sm text-muted-foreground">
-                  {isWorking ? "AI is working..." : "Ask AI to help you write..."}
-                </span>
               </div>
-              <Button size="sm" onClick={handleOpen}>
-                <IconSend className="size-3.5 mr-1.5" />
-                Ask
+              <Button
+                onClick={handleSend}
+                disabled={!value.trim() || isSending || !threadId}
+              >
+                {isSending ? (
+                  <Spinner className="size-4" />
+                ) : (
+                  <IconSend className="size-4" />
+                )}
+                <span className="ml-1.5">Send</span>
               </Button>
             </div>
-          )}
+          </div>
         </motion.div>
       </div>
     </>
