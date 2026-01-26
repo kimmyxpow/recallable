@@ -1,5 +1,5 @@
 import { ConvexError, v } from "convex/values";
-import { internalMutation, mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
 import { internal } from "./_generated/api";
 import type { Id, Doc } from "./_generated/dataModel";
@@ -227,6 +227,7 @@ export const updateContent = mutation({
   args: {
     itemId: v.id("items"),
     content: v.any(),
+    expectedVersion: v.optional(v.number()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -253,6 +254,17 @@ export const updateContent = mutation({
       });
     }
 
+    if (
+      args.expectedVersion !== undefined &&
+      item.version !== undefined &&
+      item.version !== args.expectedVersion
+    ) {
+      throw new ConvexError({
+        code: "VERSION_CONFLICT",
+        message: `Version conflict: expected ${args.expectedVersion}, current ${item.version}`,
+      });
+    }
+
     const title = extractTitleFromContent(args.content);
     const nextImageStorageIds = extractImageStorageIds(args.content);
     const previousImageStorageIds = item.imageStorageIds ?? [];
@@ -260,10 +272,13 @@ export const updateContent = mutation({
       (storageId) => !nextImageStorageIds.includes(storageId)
     );
 
+    const newVersion = (item.version ?? 0) + 1;
+
     await ctx.db.patch(args.itemId, {
       content: args.content,
       imageStorageIds: nextImageStorageIds,
       title: title || "Untitled",
+      version: newVersion,
       updatedAt: Date.now(),
     });
 
@@ -272,6 +287,11 @@ export const updateContent = mutation({
         storageIds: removedStorageIds,
       });
     }
+
+    await ctx.scheduler.runAfter(0, internal.documentIndex.rebuildIndex, {
+      itemId: args.itemId,
+    });
+
     return null;
   },
 });
@@ -643,5 +663,114 @@ export const cleanupUnusedImages = internalMutation({
 
     await Promise.all(toDelete.map((file) => ctx.storage.delete(file._id)));
     return toDelete.length;
+  },
+});
+
+export const internalList = internalQuery({
+  args: { userId: v.string() },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("items")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .collect();
+  },
+});
+
+export const internalGet = internalQuery({
+  args: { itemId: v.id("items"), userId: v.string() },
+  returns: v.union(v.any(), v.null()),
+  handler: async (ctx, args) => {
+    const item = await ctx.db.get(args.itemId);
+    if (!item || item.userId !== args.userId) {
+      return null;
+    }
+    return item;
+  },
+});
+
+export const internalCreateNote = internalMutation({
+  args: {
+    userId: v.string(),
+    title: v.optional(v.string()),
+    parentId: v.optional(v.id("items")),
+  },
+  returns: v.id("items"),
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    return await ctx.db.insert("items", {
+      userId: args.userId,
+      type: "note",
+      title: args.title ?? "Untitled",
+      parentId: args.parentId,
+      content: undefined,
+      imageStorageIds: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
+export const internalCreateFolder = internalMutation({
+  args: {
+    userId: v.string(),
+    title: v.string(),
+    parentId: v.optional(v.id("items")),
+  },
+  returns: v.id("items"),
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    return await ctx.db.insert("items", {
+      userId: args.userId,
+      type: "folder",
+      title: args.title,
+      parentId: args.parentId,
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
+export const internalUpdateContent = internalMutation({
+  args: {
+    itemId: v.id("items"),
+    userId: v.string(),
+    content: v.any(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const item = await ctx.db.get(args.itemId);
+    if (!item || item.userId !== args.userId) {
+      throw new ConvexError({ code: "NOT_FOUND", message: "Item not found" });
+    }
+
+    const title = extractTitleFromContent(args.content) || item.title;
+    const nextImageStorageIds = extractImageStorageIds(args.content);
+    const previousImageStorageIds = item.imageStorageIds ?? [];
+    const removedStorageIds = previousImageStorageIds.filter(
+      (storageId) => !nextImageStorageIds.includes(storageId)
+    );
+
+    const newVersion = (item.version ?? 0) + 1;
+
+    await ctx.db.patch(args.itemId, {
+      content: args.content,
+      imageStorageIds: nextImageStorageIds,
+      title: title || "Untitled",
+      version: newVersion,
+      updatedAt: Date.now(),
+    });
+
+    if (removedStorageIds.length > 0) {
+      await ctx.scheduler.runAfter(0, internal.items.removeStorageFiles, {
+        storageIds: removedStorageIds,
+      });
+    }
+
+    await ctx.scheduler.runAfter(0, internal.documentIndex.rebuildIndex, {
+      itemId: args.itemId,
+    });
+
+    return null;
   },
 });

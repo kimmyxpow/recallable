@@ -13,6 +13,7 @@
   "dependencies": {
     "@base-ui/react": "^1.1.0",
     "@cloudflare/vite-plugin": "^1.13.8",
+    "@convex-dev/agent": "^0.3.2",
     "@convex-dev/better-auth": "^0.10.10",
     "@convex-dev/react-query": "0.1.0",
     "@convex-dev/resend": "^0.2.3",
@@ -20,6 +21,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource/poppins": "^5.2.7",
+    "@openrouter/ai-sdk-provider": "1.5.4",
     "@paper-design/shaders-react": "^0.0.71",
     "@t3-oss/env-core": "^0.13.8",
     "@tabler/icons-react": "^3.36.1",
@@ -56,6 +58,7 @@
     "@tiptap/pm": "^3.17.0",
     "@tiptap/react": "^3.17.0",
     "@tiptap/starter-kit": "^3.17.0",
+    "ai": "5.0.29",
     "better-auth": "1.4.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

@@ -11,6 +11,7 @@ export default defineSchema({
     imageStorageIds: v.optional(v.array(v.id("_storage"))),
     tagIds: v.optional(v.array(v.id("tags"))),
     order: v.optional(v.number()),
+    version: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -27,4 +28,36 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_userId_name", ["userId", "name"]),
+
+  documentIndex: defineTable({
+    userId: v.string(),
+    itemId: v.id("items"),
+    nodeType: v.union(
+      v.literal("title"),
+      v.literal("heading"),
+      v.literal("paragraph"),
+      v.literal("list"),
+      v.literal("codeBlock")
+    ),
+    level: v.number(),
+    text: v.string(),
+    path: v.string(),
+    parentPath: v.optional(v.string()),
+    position: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_itemId", ["itemId"])
+    .index("by_userId_nodeType", ["userId", "nodeType"]),
+
+  agentThreads: defineTable({
+    userId: v.string(),
+    agentThreadId: v.string(),
+    title: v.optional(v.string()),
+    activeNoteId: v.optional(v.id("items")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_agentThreadId", ["agentThreadId"]),
 });

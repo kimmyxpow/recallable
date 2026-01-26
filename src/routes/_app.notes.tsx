@@ -191,15 +191,17 @@ function NotesPage() {
         onSelectNote={handleSelectNote}
         onNavigateFolder={handleNavigateFolder}
       />
-      {activeNoteId ? (
-        <NoteEditorPanel
-          noteId={activeNoteId as Id<"items">}
-          saveStatus={saveStatus}
-          onSaveStatusChange={setSaveStatus}
-        />
-      ) : (
-        <EmptyEditorPanel />
-      )}
+      <div className="flex flex-1">
+        {activeNoteId ? (
+          <NoteEditorPanel
+            noteId={activeNoteId as Id<"items">}
+            saveStatus={saveStatus}
+            onSaveStatusChange={setSaveStatus}
+          />
+        ) : (
+          <EmptyEditorPanel />
+        )}
+      </div>
     </div>
   );
 }

@@ -20,7 +20,7 @@ export const Route = createFileRoute("/")({
     if (context.isAuthenticated) {
       throw redirect({
         to: "/notes",
-        search: { folderId: undefined, noteId: undefined },
+        search: { parentId: undefined, noteId: undefined },
       });
     }
   },
@@ -140,7 +140,7 @@ function LoginPage() {
         );
         return;
       }
-      navigate({ to: "/notes", search: { folderId: undefined, noteId: undefined } });
+      navigate({ to: "/notes", search: { parentId: undefined, noteId: undefined } });
     },
   });
 
