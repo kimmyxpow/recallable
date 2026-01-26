@@ -25,6 +25,19 @@ import {
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import { createRoot, type Root } from "react-dom/client";
+import { motion } from "motion/react";
+
+function AnimatedIcon({ children }: { children: React.ReactNode }) {
+  return (
+    <motion.div
+      initial={{ scale: 0, rotate: -15 }}
+      animate={{ scale: 1, rotate: 0 }}
+      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+    >
+      {children}
+    </motion.div>
+  );
+}
 
 function TableMenu({
   editor,
@@ -58,27 +71,39 @@ function TableMenu({
               className="flex items-center justify-center size-7 rounded-md bg-background border border-border shadow-sm hover:bg-muted transition-colors"
               aria-label="Table Options"
             >
-              <IconDotsVertical className="size-4 text-muted-foreground" />
+              <motion.div
+                initial={{ rotate: 0 }}
+                animate={{ rotate: menuOpen ? 90 : 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              >
+                <IconDotsVertical className="size-4 text-muted-foreground" />
+              </motion.div>
             </button>
           }
         />
         <DropdownMenuContent align="end" side="bottom" className="w-52">
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
-              <IconRowInsertTop className="size-4" />
+              <AnimatedIcon>
+                <IconRowInsertTop className="size-4" />
+              </AnimatedIcon>
               Add Row
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
               <DropdownMenuItem
                 onClick={() => editor.chain().focus().addRowBefore().run()}
               >
-                <IconRowInsertTop className="size-4" />
+                <AnimatedIcon>
+                  <IconRowInsertTop className="size-4" />
+                </AnimatedIcon>
                 Insert Above
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => editor.chain().focus().addRowAfter().run()}
               >
-                <IconRowInsertBottom className="size-4" />
+                <AnimatedIcon>
+                  <IconRowInsertBottom className="size-4" />
+                </AnimatedIcon>
                 Insert Below
               </DropdownMenuItem>
             </DropdownMenuSubContent>
@@ -86,20 +111,26 @@ function TableMenu({
 
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
-              <IconColumnInsertLeft className="size-4" />
+              <AnimatedIcon>
+                <IconColumnInsertLeft className="size-4" />
+              </AnimatedIcon>
               Add Column
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
               <DropdownMenuItem
                 onClick={() => editor.chain().focus().addColumnBefore().run()}
               >
-                <IconColumnInsertLeft className="size-4" />
+                <AnimatedIcon>
+                  <IconColumnInsertLeft className="size-4" />
+                </AnimatedIcon>
                 Insert Left
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => editor.chain().focus().addColumnAfter().run()}
               >
-                <IconColumnInsertRight className="size-4" />
+                <AnimatedIcon>
+                  <IconColumnInsertRight className="size-4" />
+                </AnimatedIcon>
                 Insert Right
               </DropdownMenuItem>
             </DropdownMenuSubContent>
@@ -110,13 +141,17 @@ function TableMenu({
           <DropdownMenuItem
             onClick={() => editor.chain().focus().deleteRow().run()}
           >
-            <IconRowRemove className="size-4" />
+            <AnimatedIcon>
+              <IconRowRemove className="size-4" />
+            </AnimatedIcon>
             Delete Row
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() => editor.chain().focus().deleteColumn().run()}
           >
-            <IconColumnRemove className="size-4" />
+            <AnimatedIcon>
+              <IconColumnRemove className="size-4" />
+            </AnimatedIcon>
             Delete Column
           </DropdownMenuItem>
 
@@ -139,7 +174,9 @@ function TableMenu({
             onClick={() => editor.chain().focus().deleteTable().run()}
             variant="destructive"
           >
-            <IconTableOff className="size-4" />
+            <AnimatedIcon>
+              <IconTableOff className="size-4" />
+            </AnimatedIcon>
             Delete Table
           </DropdownMenuItem>
         </DropdownMenuContent>

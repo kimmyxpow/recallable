@@ -25,6 +25,7 @@ import {
 import { useAsyncDebouncedCallback } from "@tanstack/react-pacer";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
+import { motion, AnimatePresence } from "motion/react";
 import {
   IconBold,
   IconItalic,
@@ -94,7 +95,13 @@ function ToolbarButton({
           />
         }
       >
-        {children}
+        <motion.div
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          transition={{ type: "spring", stiffness: 400, damping: 20 }}
+        >
+          {children}
+        </motion.div>
       </TooltipTrigger>
       <TooltipContent>{tooltip}</TooltipContent>
     </Tooltip>
@@ -383,146 +390,161 @@ export function NoteEditor({
         editor={editor}
         className="flex items-center gap-0.5 rounded-lg border border-border bg-white p-1 shadow-lg"
       >
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          isActive={editorState?.isBold}
-          tooltip="Bold"
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9, y: 10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.9, y: 10 }}
+          transition={{ type: "spring", stiffness: 400, damping: 30 }}
+          className="flex items-center gap-0.5"
         >
-          <IconBold className="size-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          isActive={editorState?.isItalic}
-          tooltip="Italic"
-        >
-          <IconItalic className="size-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleStrike().run()}
-          isActive={editorState?.isStrike}
-          tooltip="Strikethrough"
-        >
-          <IconStrikethrough className="size-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleCode().run()}
-          isActive={editorState?.isCode}
-          tooltip="Code"
-        >
-          <IconCode className="size-4" />
-        </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleBold().run()}
+            isActive={editorState?.isBold}
+            tooltip="Bold"
+          >
+            <IconBold className="size-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+            isActive={editorState?.isItalic}
+            tooltip="Italic"
+          >
+            <IconItalic className="size-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleStrike().run()}
+            isActive={editorState?.isStrike}
+            tooltip="Strikethrough"
+          >
+            <IconStrikethrough className="size-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleCode().run()}
+            isActive={editorState?.isCode}
+            tooltip="Code"
+          >
+            <IconCode className="size-4" />
+          </ToolbarButton>
 
-        <Separator orientation="vertical" className="mx-1 h-6" />
+          <Separator orientation="vertical" className="mx-1 h-6" />
 
-        <ToolbarButton
-          onClick={() =>
-            editor.chain().focus().toggleHeading({ level: 1 }).run()
-          }
-          isActive={editorState?.isH1}
-          tooltip="Heading 1"
-        >
-          <IconH1 className="size-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() =>
-            editor.chain().focus().toggleHeading({ level: 2 }).run()
-          }
-          isActive={editorState?.isH2}
-          tooltip="Heading 2"
-        >
-          <IconH2 className="size-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() =>
-            editor.chain().focus().toggleHeading({ level: 3 }).run()
-          }
-          isActive={editorState?.isH3}
-          tooltip="Heading 3"
-        >
-          <IconH3 className="size-4" />
-        </ToolbarButton>
+          <ToolbarButton
+            onClick={() =>
+              editor.chain().focus().toggleHeading({ level: 1 }).run()
+            }
+            isActive={editorState?.isH1}
+            tooltip="Heading 1"
+          >
+            <IconH1 className="size-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() =>
+              editor.chain().focus().toggleHeading({ level: 2 }).run()
+            }
+            isActive={editorState?.isH2}
+            tooltip="Heading 2"
+          >
+            <IconH2 className="size-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() =>
+              editor.chain().focus().toggleHeading({ level: 3 }).run()
+            }
+            isActive={editorState?.isH3}
+            tooltip="Heading 3"
+          >
+            <IconH3 className="size-4" />
+          </ToolbarButton>
 
-        <Separator orientation="vertical" className="mx-1 h-6" />
+          <Separator orientation="vertical" className="mx-1 h-6" />
 
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          isActive={editorState?.isBulletList}
-          tooltip="Bullet List"
-        >
-          <IconList className="size-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isUploading}
-          tooltip="Insert Image"
-        >
-          <IconPhoto className="size-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => audioInputRef.current?.click()}
-          disabled={isUploading}
-          tooltip="Insert Audio"
-        >
-          <IconMusic className="size-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          isActive={editorState?.isOrderedList}
-          tooltip="Numbered List"
-        >
-          <IconListNumbers className="size-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          isActive={editorState?.isBlockquote}
-          tooltip="Blockquote"
-        >
-          <IconQuote className="size-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-          isActive={editorState?.isCodeBlock}
-          tooltip="Code Block"
-        >
-          <IconSourceCode className="size-4" />
-        </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
+            isActive={editorState?.isBulletList}
+            tooltip="Bullet List"
+          >
+            <IconList className="size-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            tooltip="Insert Image"
+          >
+            <IconPhoto className="size-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => audioInputRef.current?.click()}
+            disabled={isUploading}
+            tooltip="Insert Audio"
+          >
+            <IconMusic className="size-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            isActive={editorState?.isOrderedList}
+            tooltip="Numbered List"
+          >
+            <IconListNumbers className="size-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleBlockquote().run()}
+            isActive={editorState?.isBlockquote}
+            tooltip="Blockquote"
+          >
+            <IconQuote className="size-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+            isActive={editorState?.isCodeBlock}
+            tooltip="Code Block"
+          >
+            <IconSourceCode className="size-4" />
+          </ToolbarButton>
 
-        <Separator orientation="vertical" className="mx-1 h-6" />
+          <Separator orientation="vertical" className="mx-1 h-6" />
 
-        <ToolbarButton
-          onClick={() => editor.chain().focus().unsetAllMarks().run()}
-          tooltip="Clear Formatting"
-        >
-          <IconClearFormatting className="size-4" />
-        </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().unsetAllMarks().run()}
+            tooltip="Clear Formatting"
+          >
+            <IconClearFormatting className="size-4" />
+          </ToolbarButton>
 
-        {editorState?.isTable && (editorState.canMergeCells || editorState.canSplitCell) && (
-          <>
-            <Separator orientation="vertical" className="mx-1 h-6" />
-            {editorState.canMergeCells && (
-              <ToolbarButton
-                onClick={() => editor.chain().focus().mergeCells().run()}
-                tooltip="Merge Cells"
-              >
-                <IconArrowMergeAltLeft className="size-4" />
-              </ToolbarButton>
-            )}
-            {editorState.canSplitCell && (
-              <ToolbarButton
-                onClick={() => editor.chain().focus().splitCell().run()}
-                tooltip="Split Cell"
-              >
-                <IconLayoutBoardSplit className="size-4" />
-              </ToolbarButton>
-            )}
-          </>
-        )}
+          {editorState?.isTable && (editorState.canMergeCells || editorState.canSplitCell) && (
+            <>
+              <Separator orientation="vertical" className="mx-1 h-6" />
+              {editorState.canMergeCells && (
+                <ToolbarButton
+                  onClick={() => editor.chain().focus().mergeCells().run()}
+                  tooltip="Merge Cells"
+                >
+                  <IconArrowMergeAltLeft className="size-4" />
+                </ToolbarButton>
+              )}
+              {editorState.canSplitCell && (
+                <ToolbarButton
+                  onClick={() => editor.chain().focus().splitCell().run()}
+                  tooltip="Split Cell"
+                >
+                  <IconLayoutBoardSplit className="size-4" />
+                </ToolbarButton>
+              )}
+            </>
+          )}
+        </motion.div>
       </BubbleMenu>
 
       <FloatingMenu
         editor={editor}
         className="flex items-center gap-0.5 rounded-lg border border-border bg-white p-1 shadow-lg"
       >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9, y: -10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.9, y: -10 }}
+          transition={{ type: "spring", stiffness: 400, damping: 30 }}
+          className="flex items-center gap-0.5"
+        >
         <ToolbarButton
           onClick={() =>
             editor.chain().focus().toggleHeading({ level: 1 }).run()
@@ -606,6 +628,7 @@ export function NoteEditor({
         </ToolbarButton>
 
         <TableInsertButton editor={editor} />
+        </motion.div>
       </FloatingMenu>
 
       <input

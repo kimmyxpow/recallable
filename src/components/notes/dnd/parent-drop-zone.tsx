@@ -2,6 +2,7 @@ import { useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
 import type { ParentZoneDropTarget } from "./types";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { motion } from "motion/react";
 
 type ParentDropZoneProps = {
   targetParentId?: Id<"items">;
@@ -40,28 +41,37 @@ export function ParentDropZone({
   };
 
   return (
-    <div
+    <motion.div
       ref={setNodeRef}
       role="button"
       tabIndex={0}
       onClick={onNavigateBack}
       onKeyDown={handleKeyDown}
+      animate={{
+        scale: isDropTarget ? 1.02 : 1,
+        backgroundColor: isDropTarget ? "rgb(var(--primary) / 0.1)" : "transparent",
+      }}
+      transition={{ type: "spring", stiffness: 400, damping: 30 }}
       className={cn(
-        "flex items-center gap-2 px-2 py-1.5 mt-2 mx-2 rounded-md cursor-pointer transition-all duration-150",
-        isDropTarget
-          ? "bg-primary/10 ring-2 ring-primary/50 ring-offset-1"
-          : "hover:bg-accent/30",
+        "flex items-center gap-2 px-2 py-1.5 mt-2 mx-2 rounded-md cursor-pointer",
+        isDropTarget && "ring-2 ring-primary/50 ring-offset-1",
+        !isDropTarget && "hover:bg-accent/30",
         isDragging && "border-2 border-dashed border-primary/30"
       )}
     >
-      <BackArrowIcon className="size-4 text-foreground/60 shrink-0" />
+      <motion.div
+        animate={{ x: isDropTarget ? -3 : 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      >
+        <BackArrowIcon className="size-4 text-foreground/60 shrink-0" />
+      </motion.div>
       <span className="text-sm text-foreground/80 truncate">Back</span>
       {currentFolderName && (
         <span className="text-xs text-muted-foreground truncate ml-auto">
           {currentFolderName}
         </span>
       )}
-    </div>
+    </motion.div>
   );
 }
 

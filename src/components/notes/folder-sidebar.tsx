@@ -241,24 +241,45 @@ export function FolderSidebar({
       </DndContextProvider>
 
       <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
-        <AlertDialogContent className="max-w-sm">
-          <AlertDialogHeader className="place-items-start text-start">
-            <AlertDialogTitle>Sign out?</AlertDialogTitle>
-            <AlertDialogDescription>
-              You'll need to sign in again to access your notes.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-            >
-              {isLoggingOut ? "Signing out..." : "Sign out"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <AlertDialogContent className="max-w-sm">
+            <AlertDialogHeader className="place-items-start text-start">
+              <AlertDialogTitle>Sign out?</AlertDialogTitle>
+              <AlertDialogDescription>
+                You'll need to sign in again to access your notes.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <AlertDialogAction
+                  variant="destructive"
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                >
+                  <AnimatePresence mode="wait">
+                    {isLoggingOut && (
+                      <motion.div
+                        key="spinner"
+                        initial={{ scale: 0, rotate: -180 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        exit={{ scale: 0, rotate: 180 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <Spinner />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  {isLoggingOut ? "Signing out..." : "Sign out"}
+                </AlertDialogAction>
+              </motion.div>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </motion.div>
       </AlertDialog>
 
       <Dialog open={showNewFolderDialog} onOpenChange={setShowNewFolderDialog}>
@@ -283,13 +304,27 @@ export function FolderSidebar({
             >
               Cancel
             </Button>
-            <Button
-              onClick={handleCreateFolder}
-              disabled={isCreatingFolder || !folderName.trim()}
-            >
-              {isCreatingFolder && <Spinner />}
-              Create
-            </Button>
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <Button
+                onClick={handleCreateFolder}
+                disabled={isCreatingFolder || !folderName.trim()}
+              >
+                <AnimatePresence mode="wait">
+                  {isCreatingFolder && (
+                    <motion.div
+                      key="spinner"
+                      initial={{ scale: 0, rotate: -180 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      exit={{ scale: 0, rotate: 180 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <Spinner />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                Create
+              </Button>
+            </motion.div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -318,13 +353,27 @@ export function FolderSidebar({
             <Button variant="outline" onClick={() => setItemToRename(null)}>
               Cancel
             </Button>
-            <Button
-              onClick={handleRenameItem}
-              disabled={isRenamingItem || !newName.trim()}
-            >
-              {isRenamingItem && <Spinner />}
-              Rename
-            </Button>
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <Button
+                onClick={handleRenameItem}
+                disabled={isRenamingItem || !newName.trim()}
+              >
+                <AnimatePresence mode="wait">
+                  {isRenamingItem && (
+                    <motion.div
+                      key="spinner"
+                      initial={{ scale: 0, rotate: -180 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      exit={{ scale: 0, rotate: 180 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <Spinner />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                Rename
+              </Button>
+            </motion.div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -348,14 +397,28 @@ export function FolderSidebar({
             <AlertDialogCancel disabled={isDeletingItem}>
               Cancel
             </AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={handleDeleteItem}
-              disabled={isDeletingItem}
-            >
-              {isDeletingItem && <Spinner />}
-              {isDeletingItem ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <AlertDialogAction
+                variant="destructive"
+                onClick={handleDeleteItem}
+                disabled={isDeletingItem}
+              >
+                <AnimatePresence mode="wait">
+                  {isDeletingItem && (
+                    <motion.div
+                      key="spinner"
+                      initial={{ scale: 0, rotate: -180 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      exit={{ scale: 0, rotate: 180 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <Spinner />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                {isDeletingItem ? "Deleting..." : "Delete"}
+              </AlertDialogAction>
+            </motion.div>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -426,13 +489,33 @@ function FolderSidebarContent({
 
   return (
     <div className="w-72 flex flex-col m-6 gap-4">
-      <header className="flex bg-white rounded-lg items-center justify-between p-1">
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <IconStarsBoldDuotone className="text-primary size-5 ml-3" />
+      <motion.header
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={springTransition}
+        className="flex bg-white rounded-lg items-center justify-between p-1"
+      >
+        <motion.div
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.1 }}
+          className="flex items-center gap-2 min-w-0 flex-1"
+        >
+          <motion.div
+            animate={{ rotate: [0, 5, -5, 0] }}
+            transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+          >
+            <IconStarsBoldDuotone className="text-primary size-5 ml-3" />
+          </motion.div>
           <span className="text-sm font-medium truncate">Recallable</span>
-        </div>
+        </motion.div>
 
-        <div className="flex items-center gap-1">
+        <motion.div
+          initial={{ opacity: 0, x: 10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.1 }}
+          className="flex items-center gap-1"
+        >
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
@@ -446,22 +529,58 @@ function FolderSidebarContent({
                 onClick={onCreateNote}
                 disabled={isCreatingNote}
               >
-                {isCreatingNote ? (
-                  <Spinner />
-                ) : (
-                  <IconDocumentAddBoldDuotone className="text-foreground/60" />
-                )}
+                <AnimatePresence mode="wait">
+                  {isCreatingNote ? (
+                    <motion.div
+                      key="spinner"
+                      initial={{ scale: 0, rotate: -180 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      exit={{ scale: 0, rotate: 180 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <Spinner />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="icon"
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <IconDocumentAddBoldDuotone className="text-foreground/60" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
                 New Note
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={onCreateFolder}
                 disabled={isCreatingFolder}
               >
-                {isCreatingFolder ? (
-                  <Spinner />
-                ) : (
-                  <IconAddFolderBoldDuotone className="text-foreground/60" />
-                )}
+                <AnimatePresence mode="wait">
+                  {isCreatingFolder ? (
+                    <motion.div
+                      key="spinner"
+                      initial={{ scale: 0, rotate: -180 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      exit={{ scale: 0, rotate: 180 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <Spinner />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="icon"
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <IconAddFolderBoldDuotone className="text-foreground/60" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
                 New Folder
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -483,13 +602,19 @@ function FolderSidebarContent({
                 variant="destructive"
                 onClick={onShowLogoutDialog}
               >
-                <IconLogout2BoldDuotone className="text-foreground/60" />
+                <motion.div
+                  initial={{ scale: 0, rotate: -15 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                >
+                  <IconLogout2BoldDuotone className="text-foreground/60" />
+                </motion.div>
                 Sign out
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
-      </header>
+        </motion.div>
+      </motion.header>
 
       <div className="flex-1 overflow-hidden relative bg-white rounded-lg">
         <AnimatePresence mode="wait" custom={slideDirection}>
@@ -513,7 +638,13 @@ function FolderSidebarContent({
 
             {folders.length === 0 && notes.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                <IconSadCircleBoldDuotone className="size-10 text-muted-foreground/50 mb-2" />
+                <motion.div
+                  initial={{ scale: 0, rotate: -30 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                >
+                  <IconSadCircleBoldDuotone className="size-10 text-muted-foreground/50 mb-2" />
+                </motion.div>
                 <p className="text-sm text-muted-foreground">No notes yet</p>
                 <p className="text-xs text-muted-foreground/70">
                   Create a note or folder
@@ -557,7 +688,13 @@ function FolderSidebarContent({
                           )}
                           onClick={() => onNavigateIntoFolder(folder._id)}
                         >
-                          <IconFolder2BoldDuotone className="size-4 text-foreground/60 shrink-0" />
+                          <motion.div
+                            initial={{ scale: 0, rotate: -15 }}
+                            animate={{ scale: 1, rotate: 0 }}
+                            transition={{ delay: index * 0.03 + 0.05, type: "spring", stiffness: 300, damping: 20 }}
+                          >
+                            <IconFolder2BoldDuotone className="size-4 text-foreground/60 shrink-0" />
+                          </motion.div>
                           <span className="text-sm truncate flex-1">
                             {folder.title}
                           </span>
@@ -570,7 +707,12 @@ function FolderSidebarContent({
                                   className="opacity-0 group-hover:opacity-100"
                                   onClick={(e) => e.stopPropagation()}
                                 >
+                                  <motion.div
+                                  whileHover={{ rotate: 90 }}
+                                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                                >
                                   <IconMenuDotsBoldDuotone className="text-foreground/60" />
+                                </motion.div>
                                 </Button>
                               }
                             />
@@ -581,7 +723,13 @@ function FolderSidebarContent({
                                   onRenameItem(folder);
                                 }}
                               >
-                                <IconPenBoldDuotone className="text-foreground/60" />
+                                <motion.div
+                                  initial={{ scale: 0, rotate: -15 }}
+                                  animate={{ scale: 1, rotate: 0 }}
+                                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                                >
+                                  <IconPenBoldDuotone className="text-foreground/60" />
+                                </motion.div>
                                 Rename
                               </DropdownMenuItem>
                               <DropdownMenuItem
@@ -591,7 +739,13 @@ function FolderSidebarContent({
                                   onDeleteItem(folder);
                                 }}
                               >
-                                <IconTrashBinTrashBoldDuotone className="text-foreground/60" />
+                                <motion.div
+                                  initial={{ scale: 0, rotate: -15 }}
+                                  animate={{ scale: 1, rotate: 0 }}
+                                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                                >
+                                  <IconTrashBinTrashBoldDuotone className="text-foreground/60" />
+                                </motion.div>
                                 Delete
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -635,7 +789,13 @@ function FolderSidebarContent({
                         )}
                         onClick={() => onSelectNote(note._id)}
                       >
-                        <IconDocumentBoldDuotone className="size-4 text-foreground/60 shrink-0" />
+                        <motion.div
+                          initial={{ scale: 0, rotate: -15 }}
+                          animate={{ scale: 1, rotate: 0 }}
+                          transition={{ delay: (folders.length + index) * 0.03 + 0.05, type: "spring", stiffness: 300, damping: 20 }}
+                        >
+                          <IconDocumentBoldDuotone className="size-4 text-foreground/60 shrink-0" />
+                        </motion.div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm truncate text-inherit">
                             {note.title}
@@ -650,7 +810,12 @@ function FolderSidebarContent({
                                 className="opacity-0 group-hover:opacity-100"
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                <IconMenuDotsBoldDuotone className="text-foreground/60" />
+                                <motion.div
+                                  whileHover={{ rotate: 90 }}
+                                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                                >
+                                  <IconMenuDotsBoldDuotone className="text-foreground/60" />
+                                </motion.div>
                               </Button>
                             }
                           />
@@ -662,7 +827,13 @@ function FolderSidebarContent({
                                 onDeleteItem(note);
                               }}
                             >
-                              <IconTrashBinTrashBoldDuotone className="text-foreground/60" />
+                              <motion.div
+                                initial={{ scale: 0, rotate: -15 }}
+                                animate={{ scale: 1, rotate: 0 }}
+                                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                              >
+                                <IconTrashBinTrashBoldDuotone className="text-foreground/60" />
+                              </motion.div>
                               Delete
                             </DropdownMenuItem>
                           </DropdownMenuContent>

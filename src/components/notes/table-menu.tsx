@@ -12,6 +12,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { IconTable } from "@tabler/icons-react";
+import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 interface TableInsertGridProps {
@@ -43,9 +44,11 @@ function TableInsertGrid({ onInsert, onClose }: TableInsertGridProps) {
             row <= hoveredCell.row && col <= hoveredCell.col;
 
           return (
-            <button
+            <motion.button
               key={index}
               type="button"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
               className={cn(
                 "size-5 rounded-sm border border-border transition-colors",
                 isHighlighted ? "bg-primary" : "bg-muted hover:bg-muted/80"
@@ -89,7 +92,13 @@ export function TableInsertButton({ editor }: TableMenuProps) {
                 <Toggle size="sm" pressed={false} aria-label="Insert Table" />
               }
             >
-              <IconTable className="size-4" />
+              <motion.div
+                initial={{ scale: 0, rotate: -90 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              >
+                <IconTable className="size-4" />
+              </motion.div>
             </PopoverTrigger>
           }
         />

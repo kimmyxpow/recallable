@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 import type { FolderDropTarget, DragData } from "./types";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { motion } from "motion/react";
 
 type DroppableFolderProps = {
   id: string;
@@ -37,15 +38,18 @@ export function DroppableFolder({
   const isValidDropTarget = isOver && canDrop;
 
   return (
-    <div
+    <motion.div
       ref={setNodeRef}
+      animate={{
+        scale: isValidDropTarget ? 1.02 : 1,
+      }}
+      transition={{ type: "spring", stiffness: 400, damping: 30 }}
       className={cn(
-        "transition-all duration-150",
         isValidDropTarget && "ring-2 ring-primary/50 ring-offset-1 rounded-md",
         className
       )}
     >
       {children}
-    </div>
+    </motion.div>
   );
 }

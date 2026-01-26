@@ -2,6 +2,7 @@ import { useState, useEffect, useTransition } from "react";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useForm } from "@tanstack/react-form";
 import { z } from "zod";
+import { motion, AnimatePresence } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -61,6 +62,32 @@ function maskEmail(email: string): string {
   const masked = local.slice(0, visibleChars) + "***";
   return `${masked}@${domain}`;
 }
+
+const springTransition = {
+  type: "spring" as const,
+  stiffness: 400,
+  damping: 30,
+};
+
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.2,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: springTransition,
+  },
+};
 
 function LoginPage() {
   const [otpSent, setOtpSent] = useState(false);
@@ -167,180 +194,366 @@ function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="w-full max-w-sm flex flex-col gap-8">
-        <div className="text-center">
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={staggerContainer}
+        className="w-full max-w-sm flex flex-col gap-8"
+      >
+        <motion.div variants={itemVariants} className="text-center">
           <h1 className="text-2xl font-semibold">Welcome to Recallable</h1>
           <p className="text-muted-foreground">Sign in to start writing</p>
-        </div>
-        <CardContent className="flex flex-col gap-4">
-          {!otpSent ? (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                emailForm.handleSubmit();
-              }}
-              className="flex flex-col gap-2"
-            >
-              <FieldGroup>
-                <emailForm.Field
-                  name="email"
-                  children={(field) => {
-                    const isInvalid =
-                      field.state.meta.isTouched && !field.state.meta.isValid;
-                    return (
-                      <Field data-invalid={isInvalid}>
-                        <FieldLabel htmlFor={field.name}>Email</FieldLabel>
-                        <Input
-                          id={field.name}
-                          name={field.name}
-                          type="email"
-                          placeholder="you@example.com"
-                          value={field.state.value}
-                          onBlur={field.handleBlur}
-                          onChange={(e) => field.handleChange(e.target.value)}
-                          aria-invalid={isInvalid}
-                          autoComplete="email"
-                        />
-                        {isInvalid && (
-                          <FieldError errors={field.state.meta.errors} />
-                        )}
-                        <FieldDescription>
-                          We'll send you a magic code
-                        </FieldDescription>
-                      </Field>
-                    );
+        </motion.div>
+
+        <motion.div variants={itemVariants}>
+          <CardContent className="flex flex-col gap-4">
+            <AnimatePresence mode="wait">
+              {!otpSent ? (
+                <motion.form
+                  key="email-form"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={springTransition}
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    emailForm.handleSubmit();
                   }}
-                />
-              </FieldGroup>
-              <emailForm.Subscribe
-                selector={(state) => state.isSubmitting}
-                children={(isSubmitting) => (
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting && <Spinner />}
-                    {isSubmitting ? "Sending..." : "Continue with Email"}
-                  </Button>
-                )}
-              />
-            </form>
-          ) : (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                otpForm.handleSubmit();
-              }}
-              className="flex flex-col gap-2"
-            >
-              <FieldGroup>
-                <p className="text-sm text-center text-muted-foreground">
-                  Enter the code sent to {maskEmail(submittedEmail)}
-                </p>
-                <otpForm.Field
-                  name="otp"
-                  children={(field) => {
-                    const isInvalid =
-                      field.state.meta.isTouched && !field.state.meta.isValid;
-                    return (
-                      <Field data-invalid={isInvalid}>
-                        <FieldLabel htmlFor={field.name}>Magic Code</FieldLabel>
-                        <Input
-                          id={field.name}
-                          name={field.name}
-                          type="text"
-                          placeholder="000000"
-                          value={field.state.value}
-                          onBlur={field.handleBlur}
-                          onChange={(e) => {
-                            field.handleChange(e.target.value);
-                            if (otpError) setOtpError(null);
-                          }}
-                          aria-invalid={isInvalid || !!otpError}
-                          maxLength={6}
-                          autoComplete="one-time-code"
-                        />
-                        <FieldDescription>
-                          Didn't receive the email? Check your spam folder.
-                        </FieldDescription>
-                        {isInvalid && (
-                          <FieldError errors={field.state.meta.errors} />
-                        )}
-                        {otpError && (
-                          <p className="text-sm text-destructive">{otpError}</p>
-                        )}
-                      </Field>
-                    );
-                  }}
-                />
-              </FieldGroup>
-              <otpForm.Subscribe
-                selector={(state) => state.isSubmitting}
-                children={(isSubmitting) => (
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting && <Spinner />}
-                    {isSubmitting ? "Checking..." : "Continue"}
-                  </Button>
-                )}
-              />
-              {canResend ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleResendOtp}
-                  disabled={isPending}
+                  className="flex flex-col gap-2"
                 >
-                  {isPending && <Spinner />}
-                  {isPending ? "Sending..." : "Send new code"}
-                </Button>
+                  <FieldGroup>
+                    <emailForm.Field
+                      name="email"
+                      children={(field) => {
+                        const isInvalid =
+                          field.state.meta.isTouched && !field.state.meta.isValid;
+                        return (
+                          <Field data-invalid={isInvalid}>
+                            <FieldLabel htmlFor={field.name}>Email</FieldLabel>
+                            <Input
+                              id={field.name}
+                              name={field.name}
+                              type="email"
+                              placeholder="you@example.com"
+                              value={field.state.value}
+                              onBlur={field.handleBlur}
+                              onChange={(e) => field.handleChange(e.target.value)}
+                              aria-invalid={isInvalid}
+                              autoComplete="email"
+                            />
+                            {isInvalid && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={{ opacity: 0, height: 0 }}
+                              >
+                                <FieldError errors={field.state.meta.errors} />
+                              </motion.div>
+                            )}
+                            <FieldDescription>
+                              We'll send you a magic code
+                            </FieldDescription>
+                          </Field>
+                        );
+                      }}
+                    />
+                  </FieldGroup>
+                  <emailForm.Subscribe
+                    selector={(state) => state.isSubmitting}
+                    children={(isSubmitting) => (
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <Button type="submit" disabled={isSubmitting} className="w-full">
+                          <AnimatePresence mode="wait">
+                            {isSubmitting && (
+                              <motion.div
+                                key="spinner"
+                                initial={{ scale: 0, rotate: -180 }}
+                                animate={{ scale: 1, rotate: 0 }}
+                                exit={{ scale: 0, rotate: 180 }}
+                                transition={{ duration: 0.2 }}
+                              >
+                                <Spinner />
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                          {isSubmitting ? "Sending..." : "Continue with Email"}
+                        </Button>
+                      </motion.div>
+                    )}
+                  />
+                </motion.form>
               ) : (
-                <p className="text-xs text-center text-muted-foreground">
-                  Resend code in {resendCountdown}s
-                </p>
+                <motion.form
+                  key="otp-form"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={springTransition}
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    otpForm.handleSubmit();
+                  }}
+                  className="flex flex-col gap-2"
+                >
+                  <FieldGroup>
+                    <motion.p
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-sm text-center text-muted-foreground"
+                    >
+                      Enter the code sent to {maskEmail(submittedEmail)}
+                    </motion.p>
+                    <otpForm.Field
+                      name="otp"
+                      children={(field) => {
+                        const isInvalid =
+                          field.state.meta.isTouched && !field.state.meta.isValid;
+                        return (
+                          <Field data-invalid={isInvalid}>
+                            <FieldLabel htmlFor={field.name}>Magic Code</FieldLabel>
+                            <Input
+                              id={field.name}
+                              name={field.name}
+                              type="text"
+                              placeholder="000000"
+                              value={field.state.value}
+                              onBlur={field.handleBlur}
+                              onChange={(e) => {
+                                field.handleChange(e.target.value);
+                                if (otpError) setOtpError(null);
+                              }}
+                              aria-invalid={isInvalid || !!otpError}
+                              maxLength={6}
+                              autoComplete="one-time-code"
+                            />
+                            <FieldDescription>
+                              Didn't receive the email? Check your spam folder.
+                            </FieldDescription>
+                            {isInvalid && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={{ opacity: 0, height: 0 }}
+                              >
+                                <FieldError errors={field.state.meta.errors} />
+                              </motion.div>
+                            )}
+                            {otpError && (
+                              <motion.p
+                                initial={{ opacity: 0, y: -5 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="text-sm text-destructive"
+                              >
+                                {otpError}
+                              </motion.p>
+                            )}
+                          </Field>
+                        );
+                      }}
+                    />
+                  </FieldGroup>
+                  <otpForm.Subscribe
+                    selector={(state) => state.isSubmitting}
+                    children={(isSubmitting) => (
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <Button type="submit" disabled={isSubmitting} className="w-full">
+                          <AnimatePresence mode="wait">
+                            {isSubmitting && (
+                              <motion.div
+                                key="spinner"
+                                initial={{ scale: 0, rotate: -180 }}
+                                animate={{ scale: 1, rotate: 0 }}
+                                exit={{ scale: 0, rotate: 180 }}
+                                transition={{ duration: 0.2 }}
+                              >
+                                <Spinner />
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                          {isSubmitting ? "Checking..." : "Continue"}
+                        </Button>
+                      </motion.div>
+                    )}
+                  />
+                  <AnimatePresence mode="wait">
+                    {canResend ? (
+                      <motion.div
+                        key="resend"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        transition={springTransition}
+                      >
+                        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleResendOtp}
+                            disabled={isPending}
+                            className="w-full"
+                          >
+                            <AnimatePresence mode="wait">
+                              {isPending && (
+                                <motion.div
+                                  key="spinner"
+                                  initial={{ scale: 0, rotate: -180 }}
+                                  animate={{ scale: 1, rotate: 0 }}
+                                  exit={{ scale: 0, rotate: 180 }}
+                                  transition={{ duration: 0.2 }}
+                                >
+                                  <Spinner />
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                            {isPending ? "Sending..." : "Send new code"}
+                          </Button>
+                        </motion.div>
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="countdown"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="flex items-center justify-center"
+                      >
+                        <motion.p
+                          key={resendCountdown}
+                          initial={{ scale: 1 }}
+                          animate={{ scale: 1.1 }}
+                          transition={{ duration: 0.3 }}
+                          className="text-xs text-center text-muted-foreground"
+                        >
+                          Resend code in {resendCountdown}s
+                        </motion.p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setOtpSent(false);
+                        setOtpError(null);
+                        setResendCountdown(60);
+                        setCanResend(false);
+                        otpForm.reset();
+                        emailForm.reset();
+                      }}
+                      className="w-full"
+                    >
+                      Try a different email
+                    </Button>
+                  </motion.div>
+                </motion.form>
               )}
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setOtpSent(false);
-                  setOtpError(null);
-                  setResendCountdown(60);
-                  setCanResend(false);
-                  otpForm.reset();
-                  emailForm.reset();
-                }}
-              >
-                Try a different email
-              </Button>
-            </form>
-          )}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Or continue with
-              </span>
-            </div>
-          </div>
-          <Button
-            variant="outline"
-            onClick={handleGoogleSignIn}
-            disabled={isGooglePending || isGithubPending}
-          >
-            {isGooglePending ? <Spinner /> : <GoogleIcon />}
-            Continue with Google
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleGithubSignIn}
-            disabled={isGooglePending || isGithubPending}
-          >
-            {isGithubPending ? <Spinner /> : <GithubIcon />}
-            Continue with GitHub
-          </Button>
-        </CardContent>
-      </div>
+            </AnimatePresence>
+
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="relative"
+            >
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  Or continue with
+                </span>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="flex flex-col gap-2"
+            >
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button
+                  variant="outline"
+                  onClick={handleGoogleSignIn}
+                  disabled={isGooglePending || isGithubPending}
+                  className="w-full"
+                >
+                  <AnimatePresence mode="wait">
+                    {isGooglePending ? (
+                      <motion.div
+                        key="google-spinner"
+                        initial={{ scale: 0, rotate: -180 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        exit={{ scale: 0, rotate: 180 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <Spinner />
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="google-icon"
+                        initial={{ scale: 0, rotate: -90 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        exit={{ scale: 0, rotate: 90 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <GoogleIcon />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  Continue with Google
+                </Button>
+              </motion.div>
+
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button
+                  variant="outline"
+                  onClick={handleGithubSignIn}
+                  disabled={isGooglePending || isGithubPending}
+                  className="w-full"
+                >
+                  <AnimatePresence mode="wait">
+                    {isGithubPending ? (
+                      <motion.div
+                        key="github-spinner"
+                        initial={{ scale: 0, rotate: -180 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        exit={{ scale: 0, rotate: 180 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <Spinner />
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="github-icon"
+                        initial={{ scale: 0, rotate: -90 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        exit={{ scale: 0, rotate: 90 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <GithubIcon />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  Continue with GitHub
+                </Button>
+              </motion.div>
+            </motion.div>
+          </CardContent>
+        </motion.div>
+      </motion.div>
     </div>
   );
 }

@@ -25,6 +25,7 @@ import {
 } from "@/components/notes/note-editor";
 import { FolderSidebar } from "@/components/notes/folder-sidebar";
 import { formatDistanceToNow } from "date-fns";
+import { motion, AnimatePresence } from "motion/react";
 
 export const Route = createFileRoute("/_app/notes")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -64,30 +65,77 @@ export const Route = createFileRoute("/_app/notes")({
   component: NotesPage,
 });
 
-function SaveStatusIndicator({ status }: { status: SaveStatus }) {
-  if (status === "idle") return null;
+const springTransition = {
+  type: "spring" as const,
+  stiffness: 400,
+  damping: 30,
+};
 
+function SaveStatusIndicator({ status }: { status: SaveStatus }) {
   return (
-    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+    <AnimatePresence mode="wait">
       {status === "saving" && (
-        <>
-          <Spinner className="size-3.5" />
+        <motion.div
+          key="saving"
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.8 }}
+          transition={springTransition}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground"
+        >
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          >
+            <Spinner className="size-3.5" />
+          </motion.div>
           <span>Saving...</span>
-        </>
+        </motion.div>
       )}
       {status === "saved" && (
-        <>
-          <IconCheck className="size-3.5 text-green-500" />
-          <span className="text-green-600">Saved</span>
-        </>
+        <motion.div
+          key="saved"
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.8 }}
+          transition={springTransition}
+          className="flex items-center gap-1.5 text-xs"
+        >
+          <motion.div
+            initial={{ scale: 0, rotate: -180 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: "spring", stiffness: 500, damping: 20 }}
+          >
+            <IconCheck className="size-3.5 text-green-500" />
+          </motion.div>
+          <motion.span
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-green-600"
+          >
+            Saved
+          </motion.span>
+        </motion.div>
       )}
       {status === "error" && (
-        <>
-          <IconAlertCircle className="size-3.5 text-destructive" />
+        <motion.div
+          key="error"
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.8 }}
+          transition={springTransition}
+          className="flex items-center gap-1.5 text-xs"
+        >
+          <motion.div
+            animate={{ scale: [1, 1.1, 1] }}
+            transition={{ duration: 0.5, repeat: Infinity }}
+          >
+            <IconAlertCircle className="size-3.5 text-destructive" />
+          </motion.div>
           <span className="text-destructive">Error saving</span>
-        </>
+        </motion.div>
       )}
-    </div>
+    </AnimatePresence>
   );
 }
 
@@ -106,11 +154,22 @@ function NoteEditorPanel({
 
   if (!note) {
     return (
-      <div className="flex-1 flex items-center justify-center">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={springTransition}
+        className="flex-1 flex items-center justify-center"
+      >
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
-              <IconFileText />
+              <motion.div
+                initial={{ scale: 0, rotate: -30 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", stiffness: 200, damping: 15 }}
+              >
+                <IconFileText />
+              </motion.div>
             </EmptyMedia>
             <EmptyTitle>Note not found</EmptyTitle>
             <EmptyDescription>
@@ -118,23 +177,47 @@ function NoteEditorPanel({
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col m-6">
-      <header className="flex items-center bg-white justify-between h-11 rounded-lg px-4 shrink-0">
+    <motion.div
+      key={noteId}
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      transition={springTransition}
+      className="flex-1 flex flex-col m-6"
+    >
+      <motion.header
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={springTransition}
+        className="flex items-center bg-white justify-between h-11 rounded-lg px-4 shrink-0"
+      >
         <div className="flex items-center gap-3 min-w-0">
-          <span className="font-medium text-sm truncate">{note.title}</span>
+          <motion.span
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.1 }}
+            className="font-medium text-sm truncate"
+          >
+            {note.title}
+          </motion.span>
           <SaveStatusIndicator status={saveStatus} />
         </div>
-        <p className="text-xs text-muted-foreground truncate">
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.15 }}
+          className="text-xs text-muted-foreground truncate"
+        >
           {formatDistanceToNow(new Date(note.updatedAt), {
             addSuffix: true,
           })}
-        </p>
-      </header>
+        </motion.p>
+      </motion.header>
       <div className="flex-1 overflow-auto pb-22">
         <NoteEditor
           key={noteId}
@@ -143,25 +226,36 @@ function NoteEditorPanel({
           onSaveStatusChange={onSaveStatusChange}
         />
       </div>
-    </div>
+    </motion.div>
   );
 }
 
 function EmptyEditorPanel() {
   return (
-    <div className="flex-1 flex items-center justify-center bg-muted/10">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={springTransition}
+      className="flex-1 flex items-center justify-center bg-muted/10"
+    >
       <Empty>
         <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <IconNotes />
-          </EmptyMedia>
+          <motion.div
+            initial={{ scale: 0, rotate: -30 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+          >
+            <EmptyMedia variant="icon">
+              <IconNotes />
+            </EmptyMedia>
+          </motion.div>
           <EmptyTitle>Select a note</EmptyTitle>
           <EmptyDescription>
             Choose a note from the sidebar or create a new one.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
-    </div>
+    </motion.div>
   );
 }
 
@@ -184,7 +278,12 @@ function NotesPage() {
   };
 
   return (
-    <div className="flex h-screen max-w-7xl mx-auto">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={springTransition}
+      className="flex h-screen max-w-7xl mx-auto"
+    >
       <FolderSidebar
         currentParentId={parentId as Id<"items"> | undefined}
         selectedNoteId={activeNoteId as Id<"items"> | undefined}
@@ -192,16 +291,19 @@ function NotesPage() {
         onNavigateFolder={handleNavigateFolder}
       />
       <div className="flex flex-1">
-        {activeNoteId ? (
-          <NoteEditorPanel
-            noteId={activeNoteId as Id<"items">}
-            saveStatus={saveStatus}
-            onSaveStatusChange={setSaveStatus}
-          />
-        ) : (
-          <EmptyEditorPanel />
-        )}
+        <AnimatePresence mode="wait">
+          {activeNoteId ? (
+            <NoteEditorPanel
+              key={activeNoteId}
+              noteId={activeNoteId as Id<"items">}
+              saveStatus={saveStatus}
+              onSaveStatusChange={setSaveStatus}
+            />
+          ) : (
+            <EmptyEditorPanel key="empty" />
+          )}
+        </AnimatePresence>
       </div>
-    </div>
+    </motion.div>
   );
 }

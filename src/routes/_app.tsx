@@ -419,7 +419,13 @@ function AIInput() {
           >
             <div className="flex items-center justify-between px-4 py-2.5 border-b">
               <div className="flex items-center gap-2">
-                <IconSparkles className="size-4 text-primary" />
+                <motion.div
+                  initial={{ scale: 0, rotate: -30 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                >
+                  <IconSparkles className="size-4 text-primary" />
+                </motion.div>
                 <span className="text-sm font-medium">Conversation</span>
                 {isAgentStreaming && (
                   <motion.div
@@ -441,7 +447,12 @@ function AIInput() {
                 className="size-7"
                 title="New conversation"
               >
-                <IconRefresh className="size-3.5" />
+                <motion.div
+                  whileHover={{ rotate: 180 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                >
+                  <IconRefresh className="size-3.5" />
+                </motion.div>
               </Button>
             </div>
 
@@ -522,11 +533,29 @@ function AIInput() {
                   !value.trim() || isSending || isAgentStreaming || !threadId
                 }
               >
-                {isSending ? (
-                  <Spinner className="size-4" />
-                ) : (
-                  <IconSend className="size-4" />
-                )}
+                <AnimatePresence mode="wait">
+                  {isSending ? (
+                    <motion.div
+                      key="spinner"
+                      initial={{ scale: 0, rotate: -180 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      exit={{ scale: 0, rotate: 180 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <Spinner className="size-4" />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="send"
+                      initial={{ scale: 0, x: -10 }}
+                      animate={{ scale: 1, x: 0 }}
+                      exit={{ scale: 0, x: 10 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                    >
+                      <IconSend className="size-4" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
                 <span className="ml-1.5">Send</span>
               </Button>
             </div>
