@@ -4,7 +4,7 @@ A note-taking application with AI assistant, built with TanStack Start and Conve
 
 ## Demo
 
-https://github.com/user-attachments/assets/demo.mp4
+<video src="./demo.mp4" controls width="100%"></video>
 
 ## Features
 
