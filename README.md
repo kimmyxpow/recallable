@@ -2,9 +2,7 @@
 
 A note-taking application with AI assistant, built with TanStack Start and Convex.
 
-## Demo
-
-https://github.com/kimmyxpow/recallable/raw/refs/heads/main/demo.mp4
+https://github.com/user-attachments/assets/1daba531-76e7-4203-9cbe-d5f0df9b753d
 
 ## Features
 
@@ -18,9 +16,7 @@ https://github.com/kimmyxpow/recallable/raw/refs/heads/main/demo.mp4
 
 ## Tech Stack
 
-**Frontend:** TanStack Start, TanStack Router, TanStack Query, TipTap, Tailwind CSS v4  
-**Backend:** Convex, Better Auth, Convex Agent (AI)  
-**Runtime:** Bun
+TanStack Ecosystem, TipTap, Tailwind CSS, Convex, Better Auth, Openrouter 
 
 ## Setup
 
