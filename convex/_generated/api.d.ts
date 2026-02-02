@@ -13,6 +13,7 @@ import type * as auth from "../auth.js";
 import type * as chat from "../chat.js";
 import type * as crons from "../crons.js";
 import type * as documentIndex from "../documentIndex.js";
+import type * as htmlUtils from "../htmlUtils.js";
 import type * as http from "../http.js";
 import type * as items from "../items.js";
 import type * as resend from "../resend.js";
@@ -30,6 +31,7 @@ declare const fullApi: ApiFromModules<{
   chat: typeof chat;
   crons: typeof crons;
   documentIndex: typeof documentIndex;
+  htmlUtils: typeof htmlUtils;
   http: typeof http;
   items: typeof items;
   resend: typeof resend;

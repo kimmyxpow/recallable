@@ -7,7 +7,7 @@ export default defineSchema({
     type: v.union(v.literal("folder"), v.literal("note")),
     title: v.string(),
     parentId: v.optional(v.id("items")),
-    content: v.optional(v.any()),
+    content: v.optional(v.string()),
     imageStorageIds: v.optional(v.array(v.id("_storage"))),
     tagIds: v.optional(v.array(v.id("tags"))),
     order: v.optional(v.number()),
@@ -37,7 +37,8 @@ export default defineSchema({
       v.literal("heading"),
       v.literal("paragraph"),
       v.literal("list"),
-      v.literal("codeBlock")
+      v.literal("codeBlock"),
+      v.literal("table")
     ),
     level: v.number(),
     text: v.string(),

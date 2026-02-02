@@ -21,7 +21,6 @@ import { useState } from "react";
 import {
   NoteEditor,
   type SaveStatus,
-  type TiptapContent,
 } from "@/components/notes/note-editor";
 import { FolderSidebar } from "@/components/notes/folder-sidebar";
 import { formatDistanceToNow } from "date-fns";
@@ -222,7 +221,7 @@ function NoteEditorPanel({
         <NoteEditor
           key={noteId}
           noteId={noteId}
-          initialContent={note.content as TiptapContent}
+          initialContent={note.content as string}
           onSaveStatusChange={onSaveStatusChange}
         />
       </div>

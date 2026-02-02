@@ -7,16 +7,10 @@ import {
 } from "./_generated/server";
 import { authComponent } from "./auth";
 import type { Id } from "./_generated/dataModel";
-
-type TiptapNode = {
-  type: string;
-  attrs?: Record<string, unknown>;
-  content?: TiptapNode[];
-  text?: string;
-};
+import { extractStructureFromHtml } from "./htmlUtils";
 
 type IndexNode = {
-  nodeType: "title" | "heading" | "paragraph" | "list" | "codeBlock";
+  nodeType: "title" | "heading" | "paragraph" | "list" | "codeBlock" | "table";
   level: number;
   text: string;
   path: string;
@@ -30,23 +24,17 @@ const NODE_WEIGHTS: Record<IndexNode["nodeType"], number> = {
   paragraph: 4,
   list: 4,
   codeBlock: 2,
+  table: 3,
 };
 
-function extractTextFromNode(node: TiptapNode): string {
-  if (node.text) return node.text;
-  if (!node.content) return "";
-  return node.content.map(extractTextFromNode).join("");
-}
-
 function buildDocumentTree(
-  content: TiptapNode,
+  htmlContent: string,
   title: string
 ): IndexNode[] {
   const nodes: IndexNode[] = [];
   let position = 0;
-  let currentPath: string[] = [title];
-  let currentLevel = 0;
 
+  // Add title node
   nodes.push({
     nodeType: "title",
     level: 0,
@@ -55,70 +43,20 @@ function buildDocumentTree(
     position: position++,
   });
 
-  if (!content.content) return nodes;
+  // Extract structure from HTML
+  const structure = extractStructureFromHtml(htmlContent);
 
-  for (const node of content.content) {
-    const text = extractTextFromNode(node).trim();
-    if (!text) continue;
-
-    if (node.type === "heading") {
-      const headingLevel = (node.attrs?.level as number) || 1;
-
-      while (currentLevel >= headingLevel && currentPath.length > 1) {
-        currentPath.pop();
-        currentLevel--;
-      }
-
-      currentPath.push(text.slice(0, 100));
-      currentLevel = headingLevel;
-
-      nodes.push({
-        nodeType: "heading",
-        level: headingLevel,
-        text: text.slice(0, 500),
-        path: currentPath.join(" > "),
-        parentPath: currentPath.slice(0, -1).join(" > ") || undefined,
-        position: position++,
-      });
-    } else if (node.type === "paragraph") {
-      const summary = text.slice(0, 200);
-      nodes.push({
-        nodeType: "paragraph",
-        level: currentLevel + 1,
-        text: summary,
-        path: `${currentPath.join(" > ")} > [paragraph]`,
-        parentPath: currentPath.join(" > "),
-        position: position++,
-      });
-    } else if (node.type === "bulletList" || node.type === "orderedList") {
-      const items: string[] = [];
-      if (node.content) {
-        for (const listItem of node.content) {
-          const itemText = extractTextFromNode(listItem).trim();
-          if (itemText) items.push(itemText.slice(0, 100));
-        }
-      }
-      if (items.length > 0) {
-        nodes.push({
-          nodeType: "list",
-          level: currentLevel + 1,
-          text: items.join("; ").slice(0, 500),
-          path: `${currentPath.join(" > ")} > [list]`,
-          parentPath: currentPath.join(" > "),
-          position: position++,
-        });
-      }
-    } else if (node.type === "codeBlock") {
-      const lang = (node.attrs?.language as string) || "code";
-      nodes.push({
-        nodeType: "codeBlock",
-        level: currentLevel + 1,
-        text: `[${lang}]: ${text.slice(0, 200)}`,
-        path: `${currentPath.join(" > ")} > [code]`,
-        parentPath: currentPath.join(" > "),
-        position: position++,
-      });
-    }
+  for (const item of structure) {
+    nodes.push({
+      nodeType: item.nodeType,
+      level: item.level,
+      text: item.text,
+      path: item.path,
+      parentPath: item.path.includes(" > ")
+        ? item.path.substring(0, item.path.lastIndexOf(" > "))
+        : undefined,
+      position: position++,
+    });
   }
 
   return nodes;
@@ -252,9 +190,11 @@ export const rebuildIndex = internalMutation({
       await ctx.db.delete(node._id);
     }
 
-    if (!item.content) return null;
+    // Content is now HTML string
+    const htmlContent = typeof item.content === "string" ? item.content : "";
+    if (!htmlContent) return null;
 
-    const nodes = buildDocumentTree(item.content as TiptapNode, item.title);
+    const nodes = buildDocumentTree(htmlContent, item.title);
     const now = Date.now();
 
     for (const node of nodes) {

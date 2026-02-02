@@ -4,6 +4,10 @@ import { z } from "zod/v3";
 import { components, internal } from "./_generated/api";
 import type { Id, Doc } from "./_generated/dataModel";
 import type { DataModel } from "./_generated/dataModel";
+import {
+  htmlToMarkdown,
+  markdownToHtml,
+} from "./htmlUtils";
 
 const openrouter = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY,
@@ -87,8 +91,10 @@ const getNote = createTool<{ noteId: string }, string, NoteToolCtx>({
       return "Note not found or you don't have access to it.";
     }
 
-    const content = extractTextContent(note.content);
-    return `# ${note.title}\n\nLast updated: ${new Date(note.updatedAt).toLocaleString()}\nVersion: ${note.version ?? 0}\n\n${content}`;
+    // Content is now stored as HTML
+    const htmlContent = typeof note.content === "string" ? note.content : "";
+    const markdown = htmlToMarkdown(htmlContent);
+    return `# ${note.title}\n\nLast updated: ${new Date(note.updatedAt).toLocaleString()}\nVersion: ${note.version ?? 0}\n\n${markdown}`;
   },
 });
 
@@ -200,12 +206,12 @@ const updateNote = createTool<
   NoteToolCtx
 >({
   description:
-    "Update the content of an existing note. Use this when the user asks you to modify, add to, or rewrite a note. Always get the current note content first to avoid overwriting user changes.",
+    "Update the content of an existing note. Use this when the user asks you to modify, add to, or rewrite a note. Always get the current note content first to avoid overwriting user changes. Content can be in markdown format with support for headings (#), lists (- or 1.), code blocks (```), tables, and inline formatting.",
   args: z.object({
     noteId: z.string().describe("The ID of the note to update"),
     newContent: z
       .string()
-      .describe("The new content to set for the note (in plain text format)"),
+      .describe("The new content to set for the note (in markdown format with support for headings, lists, code blocks, tables, and inline formatting)"),
     expectedVersion: z
       .number()
       .optional()
@@ -234,13 +240,14 @@ const updateNote = createTool<
       return `Conflict detected: The note has been modified since you read it. Current version: ${note.version}, expected: ${args.expectedVersion}. Please read the note again and retry.`;
     }
 
-    const tiptapContent = textToTiptapContent(args.newContent);
+    // Convert markdown to HTML for storage
+    const htmlContent = markdownToHtml(args.newContent);
 
     try {
       await ctx.runMutation(internal.items.internalUpdateContent, {
         itemId: args.noteId as Id<"items">,
         userId: ctx.userId,
-        content: tiptapContent,
+        content: htmlContent,
       });
       return `Successfully updated note "${note.title}".`;
     } catch (error) {
@@ -255,10 +262,10 @@ const createNote = createTool<
   NoteToolCtx
 >({
   description:
-    "Create a new note with the specified content. Use this when the user asks you to create a new note or document.",
+    "Create a new note with the specified content. Use this when the user asks you to create a new note or document. Content can be in markdown format with support for headings, lists, code blocks, tables, and inline formatting.",
   args: z.object({
     title: z.string().optional().describe("The title for the new note"),
-    content: z.string().optional().describe("The initial content for the note"),
+    content: z.string().optional().describe("The initial content for the note (in markdown format)"),
     parentId: z
       .string()
       .optional()
@@ -280,11 +287,12 @@ const createNote = createTool<
       );
 
       if (args.content) {
-        const tiptapContent = textToTiptapContent(args.content);
+        // Convert markdown to HTML for storage
+        const htmlContent = markdownToHtml(args.content);
         await ctx.runMutation(internal.items.internalUpdateContent, {
           itemId: noteId,
           userId: ctx.userId,
-          content: tiptapContent,
+          content: htmlContent,
         });
       }
 
@@ -411,81 +419,6 @@ export const noteTools = {
   removeItem,
 };
 
-function extractTextContent(content: unknown): string {
-  if (!content || typeof content !== "object") return "";
-
-  const doc = content as { type?: string; content?: unknown[] };
-  if (!doc.content || !Array.isArray(doc.content)) return "";
-
-  const extractNode = (node: unknown): string => {
-    if (!node || typeof node !== "object") return "";
-    const n = node as { type?: string; text?: string; content?: unknown[] };
-
-    if (n.text) return n.text;
-    if (!n.content) return "";
-    return n.content.map(extractNode).join("");
-  };
-
-  return doc.content
-    .map((node) => {
-      const n = node as { type?: string };
-      const text = extractNode(node);
-      if (n.type === "heading") return `\n${text}\n`;
-      if (n.type === "paragraph") return `${text}\n`;
-      if (n.type === "bulletList" || n.type === "orderedList")
-        return `• ${text}\n`;
-      return text;
-    })
-    .join("");
-}
-
-function textToTiptapContent(text: string): {
-  type: "doc";
-  content: Array<Record<string, unknown>>;
-} {
-  const lines = text.split("\n");
-  const content: Array<Record<string, unknown>> = [];
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) {
-      content.push({ type: "paragraph", content: [] });
-      continue;
-    }
-
-    const h1Match = trimmed.match(/^#\s+(.+)$/);
-    const h2Match = trimmed.match(/^##\s+(.+)$/);
-    const h3Match = trimmed.match(/^###\s+(.+)$/);
-
-    if (h1Match) {
-      content.push({
-        type: "heading",
-        attrs: { level: 1 },
-        content: [{ type: "text", text: h1Match[1] }],
-      });
-    } else if (h2Match) {
-      content.push({
-        type: "heading",
-        attrs: { level: 2 },
-        content: [{ type: "text", text: h2Match[1] }],
-      });
-    } else if (h3Match) {
-      content.push({
-        type: "heading",
-        attrs: { level: 3 },
-        content: [{ type: "text", text: h3Match[1] }],
-      });
-    } else {
-      content.push({
-        type: "paragraph",
-        content: [{ type: "text", text: trimmed }],
-      });
-    }
-  }
-
-  return { type: "doc", content };
-}
-
 const agentInstructions = `You are a helpful assistant for a note-taking application called Recallable.
 
 Your role is to help users:
@@ -531,9 +464,10 @@ Example:
 
 ## When creating notes or folders:
 1. Use proper markdown formatting (# for h1, ## for h2, etc.)
-2. Keep content organized and professional
-3. Match the style and tone of the user's existing notes
-4. Create folders when asked to organize content
+2. You can use tables, lists, code blocks, and inline formatting (bold, italic, etc.)
+3. Keep content organized and professional
+4. Match the style and tone of the user's existing notes
+5. Create folders when asked to organize content
 
 If a user provides a note link (like /notes?noteId=xxx), extract the noteId and use it to access that specific note.
 

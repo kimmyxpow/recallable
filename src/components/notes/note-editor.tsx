@@ -7,11 +7,11 @@ import { FloatingMenu, BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import Audio from "@tiptap/extension-audio";
+import { TableCell } from "@tiptap/extension-table-cell";
+import { TableHeader } from "@tiptap/extension-table-header";
+import { TableRow } from "@tiptap/extension-table-row";
 import Dropcursor from "@tiptap/extension-dropcursor";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
-import { TableRow } from "@tiptap/extension-table-row";
-import { TableHeader } from "@tiptap/extension-table-header";
-import { TableCell } from "@tiptap/extension-table-cell";
 import { all, createLowlight } from "lowlight";
 import { TableInsertButton } from "./table-menu";
 import { TableWithMenu } from "./table-extension";
@@ -25,7 +25,7 @@ import {
 import { useAsyncDebouncedCallback } from "@tanstack/react-pacer";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import {
   IconBold,
   IconItalic,
@@ -47,21 +47,6 @@ import {
 } from "@tabler/icons-react";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
-
-export type TiptapContent = {
-  type: "doc";
-  content?: Array<Record<string, unknown>>;
-};
-
-const DEFAULT_CONTENT: TiptapContent = {
-  type: "doc",
-  content: [
-    {
-      type: "paragraph",
-      content: [{ type: "text", text: "Start writing here..." }],
-    },
-  ],
-};
 
 const lowlight = createLowlight(all);
 
@@ -114,7 +99,7 @@ export function NoteEditor({
   onSaveStatusChange,
 }: {
   noteId: Id<"items">;
-  initialContent: TiptapContent | undefined;
+  initialContent: string | undefined; // HTML string
   onSaveStatusChange: (status: SaveStatus) => void;
 }) {
   const convex = useConvex();
@@ -130,10 +115,10 @@ export function NoteEditor({
   const [isUploading, setIsUploading] = useState(false);
 
   const debouncedSave = useAsyncDebouncedCallback(
-    async (content: TiptapContent) => {
+    async (html: string) => {
       onSaveStatusChange("saving");
       try {
-        await updateContentMutation({ itemId: noteId, content });
+        await updateContentMutation({ itemId: noteId, content: html });
         onSaveStatusChange("saved");
         setTimeout(() => onSaveStatusChange("idle"), 2000);
       } catch {
@@ -144,9 +129,9 @@ export function NoteEditor({
   );
 
   const handleUpdate = useCallback(
-    ({ editor }: { editor: { getJSON: () => TiptapContent } }) => {
-      const json = editor.getJSON();
-      debouncedSave(json);
+    ({ editor }: { editor: { getHTML: () => string } }) => {
+      const html = editor.getHTML();
+      debouncedSave(html);
     },
     [debouncedSave]
   );
@@ -195,7 +180,7 @@ export function NoteEditor({
         preload: "metadata",
       }),
     ],
-    content: initialContent ?? DEFAULT_CONTENT,
+    content: initialContent || "<p>Start writing here...</p>",
     onUpdate: handleUpdate,
     immediatelyRender: false,
     editorProps: {

@@ -3,6 +3,10 @@ import { internalMutation, internalQuery, mutation, query } from "./_generated/s
 import { authComponent } from "./auth";
 import { internal } from "./_generated/api";
 import type { Id, Doc } from "./_generated/dataModel";
+import {
+  extractTitleFromHtml,
+  extractStorageIdsFromHtml,
+} from "./htmlUtils";
 
 export const list = query({
   args: {},
@@ -246,7 +250,7 @@ export const updateTitle = mutation({
 export const updateContent = mutation({
   args: {
     itemId: v.id("items"),
-    content: v.any(),
+    content: v.string(),
     expectedVersion: v.optional(v.number()),
   },
   returns: v.null(),
@@ -274,13 +278,6 @@ export const updateContent = mutation({
       });
     }
 
-    if (!args.content || typeof args.content !== "object") {
-      throw new ConvexError({
-        code: "INVALID_OPERATION",
-        message: "Content must be an object",
-      });
-    }
-
     if (
       args.expectedVersion !== undefined &&
       item.version !== undefined &&
@@ -292,8 +289,9 @@ export const updateContent = mutation({
       });
     }
 
-    const title = extractTitleFromContent(args.content);
-    const nextImageStorageIds = extractImageStorageIds(args.content);
+    // Content is now HTML - extract title and storage IDs from HTML
+    const title = extractTitleFromHtml(args.content);
+    const nextImageStorageIds = extractStorageIdsFromHtml(args.content) as Id<"_storage">[];
     const previousImageStorageIds = item.imageStorageIds ?? [];
     const removedStorageIds = previousImageStorageIds.filter(
       (storageId) => !nextImageStorageIds.includes(storageId)
@@ -322,76 +320,6 @@ export const updateContent = mutation({
     return null;
   },
 });
-
-function extractTitleFromContent(content: {
-  type: string;
-  content?: Array<{
-    type: string;
-    attrs?: { level?: number };
-    content?: Array<{ type: string; text?: string }>;
-  }>;
-}): string | null {
-  if (!content?.content?.length) {
-    return null;
-  }
-
-  for (const node of content.content) {
-    if (node.type === "heading" && node.attrs?.level === 1) {
-      const text = node.content
-        ?.filter((c) => c.type === "text" && c.text)
-        .map((c) => c.text)
-        .join("");
-      if (text?.trim()) {
-        return text.trim();
-      }
-    }
-  }
-
-  const firstNode = content.content[0];
-  if (firstNode?.content?.length) {
-    const text = firstNode.content
-      .filter((c) => c.type === "text" && c.text)
-      .map((c) => c.text)
-      .join("");
-    if (text?.trim()) {
-      return text.trim();
-    }
-  }
-
-  return null;
-}
-
-function extractImageStorageIds(content: {
-  type: string;
-  content?: Array<Record<string, unknown>>;
-}): Id<"_storage">[] {
-  const storageIds = new Set<Id<"_storage">>();
-  if (!content?.content?.length) {
-    return [];
-  }
-  const stack = [...content.content];
-  while (stack.length) {
-    const node = stack.pop();
-    if (!node || typeof node !== "object") {
-      continue;
-    }
-    const typedNode = node as {
-      type?: string;
-      attrs?: { storageId?: Id<"_storage"> };
-      content?: Array<Record<string, unknown>>;
-    };
-    if (
-      (typedNode.type === "image" || typedNode.type === "audio") &&
-      typedNode.attrs?.storageId
-    ) {
-      storageIds.add(typedNode.attrs.storageId);
-    }
-    if (Array.isArray(typedNode.content)) {
-      stack.push(...typedNode.content);
-    }
-  }
-  return Array.from(storageIds);
-}
 
 export const move = mutation({
   args: {
@@ -960,7 +888,7 @@ export const internalUpdateContent = internalMutation({
   args: {
     itemId: v.id("items"),
     userId: v.string(),
-    content: v.any(),
+    content: v.string(),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -969,8 +897,9 @@ export const internalUpdateContent = internalMutation({
       throw new ConvexError({ code: "NOT_FOUND", message: "Item not found" });
     }
 
-    const title = extractTitleFromContent(args.content) || item.title;
-    const nextImageStorageIds = extractImageStorageIds(args.content);
+    // Content is now HTML - extract title and storage IDs from HTML
+    const title = extractTitleFromHtml(args.content) || item.title;
+    const nextImageStorageIds = extractStorageIdsFromHtml(args.content) as Id<"_storage">[];
     const previousImageStorageIds = item.imageStorageIds ?? [];
     const removedStorageIds = previousImageStorageIds.filter(
       (storageId) => !nextImageStorageIds.includes(storageId)
