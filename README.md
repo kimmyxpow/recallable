@@ -44,8 +44,13 @@ TanStack Ecosystem, TipTap, Tailwind CSS, Convex, Better Auth, Openrouter
    Set Convex environment variables (stored in Convex cloud):
 
    ```bash
-   bunx convex env set OPENROUTER_API_KEY your_api_key
    bunx convex env set BETTER_AUTH_SECRET your_secret_here
+   bunx convex env set OPENROUTER_API_KEY your_api_key
+   bunx convex env set GITHUB_CLIENT_ID your_github_id
+   bunx convex env set GITHUB_CLIENT_SECRET your_github_secret
+   bunx convex env set RESEND_API_KEY your_resend_key
+   bunx convex env set RESEND_WEBHOOK_SECRET your_webhook_secret
+   bunx convex env set SITE_URL http://localhost:3800
    ```
 
 3. **Initialize Convex**
@@ -80,10 +85,25 @@ TanStack Ecosystem, TipTap, Tailwind CSS, Convex, Better Auth, Openrouter
 
 **Convex Cloud** (for backend functions):
 
-- `OPENROUTER_API_KEY` - AI provider API key
 - `BETTER_AUTH_SECRET` - Auth secret (must match project)
+- `OPENROUTER_API_KEY` - AI provider API key
+- `GITHUB_CLIENT_ID` - GitHub OAuth client ID
+- `GITHUB_CLIENT_SECRET` - GitHub OAuth client secret
+- `RESEND_API_KEY` - Resend email service API key
+- `RESEND_WEBHOOK_SECRET` - Resend webhook secret
+- `SITE_URL` - Application URL (e.g., http://localhost:3800)
 
-Set Convex env vars with: `bunx convex env set KEY value`
+Set Convex env vars with:
+
+```bash
+bunx convex env set BETTER_AUTH_SECRET your_secret
+bunx convex env set OPENROUTER_API_KEY your_openrouter_key
+bunx convex env set GITHUB_CLIENT_ID your_github_id
+bunx convex env set GITHUB_CLIENT_SECRET your_github_secret
+bunx convex env set RESEND_API_KEY your_resend_key
+bunx convex env set RESEND_WEBHOOK_SECRET your_webhook_secret
+bunx convex env set SITE_URL http://localhost:3800
+```
 
 ## Scripts
 
@@ -130,7 +150,15 @@ languageModel: openrouter.chat("z-ai/glm-4.5-air");
 
 ```bash
 bunx convex deploy
+
+# Set production environment variables
+bunx convex env set BETTER_AUTH_SECRET your_secret --prod
 bunx convex env set OPENROUTER_API_KEY your_key --prod
+bunx convex env set GITHUB_CLIENT_ID your_id --prod
+bunx convex env set GITHUB_CLIENT_SECRET your_secret --prod
+bunx convex env set RESEND_API_KEY your_key --prod
+bunx convex env set RESEND_WEBHOOK_SECRET your_secret --prod
+bunx convex env set SITE_URL https://your-production-url.com --prod
 ```
 
 **Cloudflare Pages:**
